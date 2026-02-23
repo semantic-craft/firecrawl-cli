@@ -11,6 +11,7 @@ import type {
 } from '../types/scrape';
 import { getClient } from '../utils/client';
 import { handleScrapeOutput } from '../utils/output';
+import { getOrigin } from '../utils/url';
 import { executeMap } from './map';
 import { getStatus } from './status';
 
@@ -400,10 +401,12 @@ export async function handleAllScrapeCommand(
   const fs = await import('fs');
   const path = await import('path');
 
-  process.stderr.write(`Mapping ${siteUrl}...\n`);
+  // Map from origin so non-root URLs (e.g. pasted subpage) work reliably
+  const mapUrl = getOrigin(siteUrl);
+  process.stderr.write(`Mapping ${mapUrl}...\n`);
 
   const mapResult = await executeMap({
-    urlOrJobId: siteUrl,
+    urlOrJobId: mapUrl,
     apiKey: options.apiKey,
     apiUrl: options.apiUrl,
     search,
@@ -423,7 +426,7 @@ export async function handleAllScrapeCommand(
     process.exit(1);
   }
 
-  process.stderr.write(`Found ${totalFound} pages on ${siteUrl}\n`);
+  process.stderr.write(`Found ${totalFound} pages on ${mapUrl}\n`);
 
   // Detect if user passed any explicit flags (non-interactive mode)
   const hasExplicitFlags =
