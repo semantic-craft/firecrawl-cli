@@ -37,3 +37,16 @@ export function normalizeUrl(url: string): string {
   }
   return `https://${url}`;
 }
+
+/**
+ * Get the origin (scheme + host) from a URL.
+ * Use for map operations when a non-root URL is passed - mapping works best from the site root.
+ */
+export function getOrigin(url: string): string {
+  try {
+    const parsed = new URL(normalizeUrl(url));
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return url;
+  }
+}
