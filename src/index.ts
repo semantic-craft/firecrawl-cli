@@ -737,12 +737,12 @@ function createBrowserCommand(): Command {
     )
     .option('--api-url <url>', 'API URL (overrides global --api-url)')
     .option(
-      '--persistent-session <name>',
-      'Name for a persistent session (survives close, reconnect by name later)'
+      '--profile <name>',
+      'Name for a profile (survives close, reconnect by name later)'
     )
     .option(
       '--write-mode <mode>',
-      'Write mode for persistent session: readonly or readwrite (default: readwrite)'
+      'Write mode for profile: readonly or readwrite (default: readwrite)'
     )
     .option('-o, --output <path>', 'Output file path (default: stdout)')
     .option('--json', 'Output as JSON format', false)
@@ -759,7 +759,7 @@ function createBrowserCommand(): Command {
         }
         await handleBrowserQuickExecute({
           code,
-          persistentSession: options.persistentSession,
+          profile: options.profile,
           writeMode: options.writeMode,
           apiKey: options.apiKey,
           apiUrl: options.apiUrl,
@@ -805,12 +805,12 @@ Explicit subcommands:
     )
     .option('--ttl-inactivity <seconds>', 'Inactivity TTL in seconds', parseInt)
     .option(
-      '--persistent-session <name>',
-      'Name for a persistent session (survives close, reconnect by name later)'
+      '--profile <name>',
+      'Name for a profile (survives close, reconnect by name later)'
     )
     .option(
       '--write-mode <mode>',
-      'Write mode for persistent session: readonly or readwrite (default: readwrite)'
+      'Write mode for profile: readonly or readwrite (default: readwrite)'
     )
     .option(
       '-k, --api-key <key>',
@@ -833,8 +833,8 @@ Examples:
   $ firecrawl browser launch-session
   $ firecrawl browser launch-session --ttl 600
   $ firecrawl browser launch-session --ttl 300 --ttl-inactivity 60
-  $ firecrawl browser launch-session --persistent-session my-session
-  $ firecrawl browser launch-session --persistent-session my-session --write-mode readonly
+  $ firecrawl browser launch-session --profile my-session
+  $ firecrawl browser launch-session --profile my-session --write-mode readonly
   $ firecrawl browser launch-session -o session.json --json
 `
     )
@@ -849,7 +849,7 @@ Examples:
       await handleBrowserLaunch({
         ttl: options.ttl,
         ttlInactivity: options.ttlInactivity,
-        persistentSession: options.persistentSession,
+        profile: options.profile,
         writeMode: options.writeMode,
         apiKey: options.apiKey,
         apiUrl: options.apiUrl,

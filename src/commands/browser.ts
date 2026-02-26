@@ -16,7 +16,7 @@ import { writeOutput } from '../utils/output';
 export interface BrowserLaunchOptions {
   ttl?: number;
   ttlInactivity?: number;
-  persistentSession?: string;
+  profile?: string;
   writeMode?: 'readonly' | 'readwrite';
   apiKey?: string;
   apiUrl?: string;
@@ -52,7 +52,7 @@ export interface BrowserCloseOptions {
 
 export interface BrowserQuickExecuteOptions {
   code: string;
-  persistentSession?: string;
+  profile?: string;
   writeMode?: 'readonly' | 'readwrite';
   apiKey?: string;
   apiUrl?: string;
@@ -72,7 +72,7 @@ export async function handleBrowserLaunch(
     const args: {
       ttl?: number;
       activityTtl?: number;
-      persistentSession?: {
+      profile?: {
         name: string;
         writeMode?: 'readonly' | 'readwrite';
       };
@@ -80,9 +80,9 @@ export async function handleBrowserLaunch(
     if (options.ttl !== undefined) args.ttl = options.ttl;
     if (options.ttlInactivity !== undefined)
       args.activityTtl = options.ttlInactivity;
-    if (options.persistentSession) {
-      args.persistentSession = {
-        name: options.persistentSession,
+    if (options.profile) {
+      args.profile = {
+        name: options.profile,
         writeMode: options.writeMode,
       };
     }
@@ -289,14 +289,14 @@ export async function handleBrowserQuickExecute(
       const app = getClient({ apiKey: options.apiKey, apiUrl: options.apiUrl });
 
       const launchArgs: {
-        persistentSession?: {
+        profile?: {
           name: string;
           writeMode?: 'readonly' | 'readwrite';
         };
       } = {};
-      if (options.persistentSession) {
-        launchArgs.persistentSession = {
-          name: options.persistentSession,
+      if (options.profile) {
+        launchArgs.profile = {
+          name: options.profile,
           writeMode: options.writeMode,
         };
       }
