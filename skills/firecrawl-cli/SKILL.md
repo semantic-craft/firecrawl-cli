@@ -26,7 +26,7 @@ Run `firecrawl --help` or `firecrawl <command> --help` for full option details.
 Must be installed and authenticated. Check with `firecrawl --status`.
 
 ```
-  🔥 firecrawl cli v1.4.0
+  🔥 firecrawl cli v1.8.0
 
   ● Authenticated via FIRECRAWL_API_KEY
   Concurrency: 0/100 jobs (parallel scrape limit)
