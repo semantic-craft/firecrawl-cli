@@ -95,7 +95,7 @@ browser "scrape" -o .firecrawl/products-p2.md       →  extract page 2 content
 **Example: login then scrape authenticated content**
 
 ```
-browser launch-session --persistent-session my-app  →  create a named persistent session
+browser launch-session --profile my-app  →  create a named persistent session
 browser "open https://app.example.com/login"        →  navigate to login
 browser "snapshot -i"                               →  find form fields
 browser "fill @e3 'user@example.com'"               →  fill email
@@ -104,7 +104,7 @@ browser "click @e7"                                 →  click Login
 browser "wait 2"                                    →  wait for redirect
 browser close                                       →  disconnect, state persisted
 
-browser launch-session --persistent-session my-app  →  reconnect, cookies intact
+browser launch-session --profile my-app  →  reconnect, cookies intact
 browser "open https://app.example.com/dashboard"    →  already logged in
 browser "scrape" -o .firecrawl/dashboard.md         →  extract authenticated content
 browser close
@@ -271,13 +271,13 @@ Shorthand auto-launches a session if none exists - no setup required.
 
 Session management: `launch-session --ttl 600`, `list`, `close`
 
-Options: `--ttl <seconds>`, `--ttl-inactivity <seconds>`, `--session <id>`, `--persistent-session <name>`, `--write-mode <readonly|readwrite>`, `-o`
+Options: `--ttl <seconds>`, `--ttl-inactivity <seconds>`, `--session <id>`, `--profile <name>`, `--write-mode <readonly|readwrite>`, `-o`
 
 **Persistent sessions** survive close and can be reconnected by name. Use them when you need to login first, then come back later to do work while already authenticated:
 
 ```bash
 # Session 1: Login and save state
-firecrawl browser launch-session --persistent-session my-app
+firecrawl browser launch-session --profile my-app
 firecrawl browser "open https://app.example.com/login"
 firecrawl browser "snapshot -i"
 firecrawl browser "fill @e3 'user@example.com'"
@@ -287,7 +287,7 @@ firecrawl browser "wait 2"
 firecrawl browser close
 
 # Session 2: Come back authenticated
-firecrawl browser launch-session --persistent-session my-app
+firecrawl browser launch-session --profile my-app
 firecrawl browser "open https://app.example.com/dashboard"
 firecrawl browser "scrape" -o .firecrawl/dashboard.md
 firecrawl browser close
@@ -296,13 +296,13 @@ firecrawl browser close
 Read-only reconnect (no writes to session state):
 
 ```bash
-firecrawl browser launch-session --persistent-session my-app --write-mode readonly
+firecrawl browser launch-session --profile my-app --write-mode readonly
 ```
 
 Shorthand with persistent session:
 
 ```bash
-firecrawl browser --persistent-session my-app "open https://example.com"
+firecrawl browser --profile my-app "open https://example.com"
 ```
 
 ### credit-usage
