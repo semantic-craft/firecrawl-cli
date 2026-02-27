@@ -305,6 +305,8 @@ Shorthand with profile:
 firecrawl browser --profile my-app "open https://example.com"
 ```
 
+If you get forbidden errors in the browser, you may need to create a new session as the old one may have expired.
+
 ### credit-usage
 
 ```bash
