@@ -165,7 +165,7 @@ function isSessionExpiredError(error: unknown): boolean {
       ? error.message.toLowerCase()
       : String(error).toLowerCase();
   const status = (error as { status?: number }).status;
-  if (status === 410 || status === 404) return true;
+  if (status === 403 || status === 410 || status === 404) return true;
   return /destroyed|expired|not found|gone|session.*closed/i.test(msg);
 }
 
@@ -282,42 +282,44 @@ export async function handleBrowserList(
 export async function handleBrowserQuickExecute(
   options: BrowserQuickExecuteOptions
 ): Promise<void> {
+  async function launchNewSession(): Promise<void> {
+    const app = getClient({ apiKey: options.apiKey, apiUrl: options.apiUrl });
+
+    const launchArgs: {
+      profile?: {
+        name: string;
+        saveChanges?: boolean;
+      };
+    } = {};
+    if (options.profile) {
+      launchArgs.profile = {
+        name: options.profile,
+        saveChanges: options.saveChanges,
+      };
+    }
+
+    const data = await app.browser(
+      launchArgs as Parameters<typeof app.browser>[0]
+    );
+
+    if (!data.success) {
+      console.error('Error:', data.error || 'Failed to launch session');
+      process.exit(1);
+    }
+
+    saveBrowserSession({
+      id: data.id!,
+      cdpUrl: data.cdpUrl!,
+      createdAt: new Date().toISOString(),
+    });
+
+    console.error(`Session launched: ${data.id}`);
+  }
+
   // Auto-launch if no active session
-  const existing = loadBrowserSession();
-  if (!existing) {
+  if (!loadBrowserSession()) {
     try {
-      const app = getClient({ apiKey: options.apiKey, apiUrl: options.apiUrl });
-
-      const launchArgs: {
-        profile?: {
-          name: string;
-          saveChanges?: boolean;
-        };
-      } = {};
-      if (options.profile) {
-        launchArgs.profile = {
-          name: options.profile,
-          saveChanges: options.saveChanges,
-        };
-      }
-
-      const data = await app.browser(
-        launchArgs as Parameters<typeof app.browser>[0]
-      );
-
-      if (!data.success) {
-        console.error('Error:', data.error || 'Failed to launch session');
-        process.exit(1);
-      }
-
-      saveBrowserSession({
-        id: data.id!,
-        cdpUrl: data.cdpUrl!,
-        createdAt: new Date().toISOString(),
-      });
-
-      // Print session info to stderr so it doesn't mix with command output
-      console.error(`Session launched: ${data.id}`);
+      await launchNewSession();
     } catch (error) {
       console.error(
         'Error:',
@@ -333,15 +335,70 @@ export async function handleBrowserQuickExecute(
     finalCode = `agent-browser ${finalCode}`;
   }
 
-  // Execute via the standard handler
-  await handleBrowserExecute({
+  const executeOptions = {
     code: finalCode,
-    language: 'bash',
+    language: 'bash' as const,
     apiKey: options.apiKey,
     apiUrl: options.apiUrl,
     output: options.output,
     json: options.json,
-  });
+  };
+
+  // Try executing; if the cached session is stale, launch a new one and retry
+  try {
+    const sessionId = getSessionId();
+    const app = getClient({ apiKey: options.apiKey, apiUrl: options.apiUrl });
+
+    const data = await app.browserExecute(sessionId, {
+      code: executeOptions.code,
+      language: executeOptions.language,
+    });
+
+    if (!data.success) {
+      console.error('Error:', data.error || 'Unknown error');
+      process.exit(1);
+    }
+
+    if (data.error) {
+      process.stderr.write(`Code error: ${data.error}\n`);
+    }
+
+    if (options.json) {
+      const output = JSON.stringify(data, null, 2);
+      writeOutput(output, options.output, !!options.output);
+    } else {
+      const result = data.stdout || data.result || '';
+      if (result) {
+        writeOutput(result.trimEnd(), options.output, !!options.output);
+      }
+    }
+  } catch (error) {
+    if (isSessionExpiredError(error)) {
+      console.error('Cached session expired, launching a new one...');
+      clearBrowserSession();
+
+      try {
+        await launchNewSession();
+      } catch (launchError) {
+        console.error(
+          'Error:',
+          launchError instanceof Error
+            ? launchError.message
+            : 'Failed to launch session'
+        );
+        process.exit(1);
+      }
+
+      // Retry with the new session
+      await handleBrowserExecute(executeOptions);
+    } else {
+      console.error(
+        'Error:',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      );
+      process.exit(1);
+    }
+  }
 }
 
 /**

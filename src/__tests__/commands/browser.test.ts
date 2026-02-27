@@ -163,4 +163,93 @@ describe('Browser Commands', () => {
       expect.objectContaining({ id: 'new-session' })
     );
   });
+
+  it('quick execute retries with new session on 403 Forbidden', async () => {
+    const { clearBrowserSession, saveBrowserSession } =
+      await import('../../utils/browser-session');
+
+    // First execute call fails with 403 (stale cached session)
+    const forbiddenError = Object.assign(new Error('Forbidden'), {
+      status: 403,
+    });
+    mockClient.browserExecute
+      .mockRejectedValueOnce(forbiddenError)
+      .mockResolvedValueOnce({
+        success: true,
+        stdout: 'page loaded',
+      });
+
+    // Launch new session succeeds
+    mockClient.browser.mockResolvedValue({
+      success: true,
+      id: 'fresh-session',
+      cdpUrl: 'wss://fresh',
+    });
+
+    await handleBrowserQuickExecute({ code: 'open https://example.com' });
+
+    expect(clearBrowserSession).toHaveBeenCalled();
+    expect(mockClient.browser).toHaveBeenCalledTimes(1);
+    expect(saveBrowserSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'fresh-session' })
+    );
+    expect(mockClient.browserExecute).toHaveBeenCalledTimes(2);
+  });
+
+  it('quick execute retries with new session on 410 Gone', async () => {
+    const { clearBrowserSession } = await import('../../utils/browser-session');
+
+    const goneError = Object.assign(new Error('Gone'), { status: 410 });
+    mockClient.browserExecute
+      .mockRejectedValueOnce(goneError)
+      .mockResolvedValueOnce({
+        success: true,
+        stdout: 'page loaded',
+      });
+
+    mockClient.browser.mockResolvedValue({
+      success: true,
+      id: 'fresh-session',
+      cdpUrl: 'wss://fresh',
+    });
+
+    await handleBrowserQuickExecute({ code: 'open https://example.com' });
+
+    expect(clearBrowserSession).toHaveBeenCalled();
+    expect(mockClient.browser).toHaveBeenCalledTimes(1);
+    expect(mockClient.browserExecute).toHaveBeenCalledTimes(2);
+  });
+
+  it('quick execute retries on "session destroyed" error message', async () => {
+    const { clearBrowserSession } = await import('../../utils/browser-session');
+
+    mockClient.browserExecute
+      .mockRejectedValueOnce(new Error('session has been destroyed'))
+      .mockResolvedValueOnce({
+        success: true,
+        stdout: 'ok',
+      });
+
+    mockClient.browser.mockResolvedValue({
+      success: true,
+      id: 'fresh-session',
+      cdpUrl: 'wss://fresh',
+    });
+
+    await handleBrowserQuickExecute({ code: 'open https://example.com' });
+
+    expect(clearBrowserSession).toHaveBeenCalled();
+    expect(mockClient.browserExecute).toHaveBeenCalledTimes(2);
+  });
+
+  it('quick execute exits on non-session errors without retry', async () => {
+    mockClient.browserExecute.mockRejectedValueOnce(
+      new Error('Network timeout')
+    );
+
+    await handleBrowserQuickExecute({ code: 'open https://example.com' });
+
+    expect(mockClient.browser).not.toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(1);
+  });
 });
