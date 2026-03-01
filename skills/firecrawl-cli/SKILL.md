@@ -99,7 +99,6 @@ browser launch-session --profile my-app  →  create a named profile
 browser "open https://app.example.com/login"        →  navigate to login
 browser "snapshot -i"                               →  find form fields
 browser "fill @e3 'user@example.com'"               →  fill email
-browser "fill @e5 'password'"                       →  fill password
 browser "click @e7"                                 →  click Login
 browser "wait 2"                                    →  wait for redirect
 browser close                                       →  disconnect, state persisted
