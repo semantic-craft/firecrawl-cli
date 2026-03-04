@@ -28,33 +28,33 @@ Run `firecrawl --status` to confirm CLI is installed and authenticated. If not r
 
 ## Commands
 
-| I need to...                                                       | Command        | Reference                                      |
-| ------------------------------------------------------------------ | -------------- | ---------------------------------------------- |
-| Find pages on a topic (no URL yet)                                 | `search`       | [references/search.md](references/search.md)   |
-| Get content from a URL                                             | `scrape`       | [references/scrape.md](references/scrape.md)   |
-| Find a specific page on a large site                               | `map`          | [references/map.md](references/map.md)         |
-| Extract many pages from a site                                     | `crawl`        | [references/crawl.md](references/crawl.md)     |
-| Interact: click, expand, scroll, log in, paginate, dismiss banners | `browser`      | [references/browser.md](references/browser.md) |
-| Check remaining API credits                                        | `credit-usage` | `firecrawl credit-usage`                       |
-| Check auth, concurrency limits, credits                            | `--status`     | `firecrawl --status`                           |
+| I need to...                                                                                                          | Command        | Reference                                      |
+| --------------------------------------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------- |
+| Find pages on a topic (no URL yet)                                                                                    | `search`       | [references/search.md](references/search.md)   |
+| Get content from a URL                                                                                                | `scrape`       | [references/scrape.md](references/scrape.md)   |
+| Find a specific page on a large site                                                                                  | `map`          | [references/map.md](references/map.md)         |
+| Extract many pages from a site                                                                                        | `crawl`        | [references/crawl.md](references/crawl.md)     |
+| Interact: click, expand, scroll, log in, paginate, dismiss banners, cookie walls, infinite scroll, sessions, profiles | `browser`      | [references/browser.md](references/browser.md) |
+| Check remaining API credits                                                                                           | `credit-usage` | `firecrawl credit-usage`                       |
+| Check auth, concurrency limits, credits                                                                               | `--status`     | `firecrawl --status`                           |
 
-**Default to `scrape` — unless the request implies interaction.** Scrape handles static pages, JS-rendered SPAs, PDFs, and cached re-fetches. But if the user says click, expand, scroll, log in, paginate, dismiss, toggle, or interact — go straight to `browser`. Don't scrape first when the intent is clearly interactive. If you already scraped and the result is incomplete or needs interaction to get the rest, switch to `browser` immediately — don't hesitate.
+**Default to `scrape` -unless the request implies interaction.** Scrape handles static pages, JS-rendered SPAs, PDFs, and cached re-fetches. But if the user says click, expand, scroll, log in, paginate, dismiss, toggle, or interact -go straight to `browser`. Don't scrape first when the intent is clearly interactive. If you already scraped and the result is incomplete or needs interaction to get the rest, switch to `browser` immediately -don't hesitate.
 
-**IMPORTANT: Read the reference file before running any command.** Click the reference link in the table above and read the full doc for the command you chose. Do NOT guess at flags or syntax — the reference files have the exact CLI syntax, options, and examples. Guessing leads to errors.
+**IMPORTANT: Read the reference file before running any command.** Click the reference link in the table above and read the full doc for the command you chose. Do NOT guess at flags or syntax -the reference files have the exact CLI syntax, options, and examples. Guessing leads to errors.
 
 ## Key Principles
 
-**Scrape for content, browser for interaction.** `scrape` is the workhorse for fetching pages — fast, handles JS rendering, supports caching (`--max-age`), PDFs, JSON extraction (`--format json`), and geo-targeting. But when the request involves any interaction (expand sections, click tabs, scroll to load more, dismiss overlays, log in, paginate) — skip scrape and go directly to `browser`.
+**Scrape for content, browser for interaction.** `scrape` is the workhorse for fetching pages -fast, handles JS rendering, supports caching (`--max-age`), PDFs, JSON extraction (`--format json`), and geo-targeting. But when the request involves any interaction (expand sections, click tabs, scroll to load more, dismiss overlays, log in, paginate) -skip scrape and go directly to `browser`.
 
-**Recognize interaction intent in the prompt.** These words/phrases mean browser, not scrape: "expand", "click", "scroll down", "load more", "log in", "sign in", "dismiss", "accept cookies", "toggle", "next page", "paginate", "fill out", "select tab". Don't try scrape first when these appear — it wastes a round-trip.
+**Recognize interaction intent in the prompt.** These words/phrases mean browser, not scrape: "expand", "click", "scroll down", "load more", "log in", "sign in", "dismiss", "accept cookies", "toggle", "next page", "paginate", "fill out", "select tab". Don't try scrape first when these appear -it wastes a round-trip.
 
-**Browser is a real Chromium session.** Don't use scrape `--actions` (API-only feature) — use `browser` instead. Go directly to browser for: cookie consent walls, infinite scroll, content behind expand/collapse, logged-in pages, multi-tab dashboards.
+**Browser is a real Chromium session.** Don't use scrape `--actions` (API-only feature) -use `browser` instead. Go directly to browser for: cookie consent walls, infinite scroll, content behind expand/collapse, logged-in pages, multi-tab dashboards.
 
 **Search is the entry point.** When you don't have a URL yet, start with `search`. Use `--scrape` to fetch full content in one shot (don't re-scrape those URLs after).
 
 **Use caching.** Pass `--max-age` on `scrape` to avoid re-fetching unchanged content.
 
-**Save to files.** Write results to `.firecrawl/` with `-o` to keep context clean. Add `.firecrawl/` to `.gitignore`. Always quote URLs — shell interprets `?` and `&` as special characters.
+**Save to files.** Write results to `.firecrawl/` with `-o` to keep context clean. Add `.firecrawl/` to `.gitignore`. Always quote URLs -shell interprets `?` and `&` as special characters.
 
 ```
 .firecrawl/search-{query}.json
