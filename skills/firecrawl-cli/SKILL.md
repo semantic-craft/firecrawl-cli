@@ -17,7 +17,7 @@ allowed-tools:
 
 # Firecrawl CLI v1.9.2
 
-Web scraping, search, and browser automation. Returns clean markdown optimized for LLM context windows.
+Web scraping, search, and browser automation. Returns clean markdown optimized for LLM context windows and browser automation.
 
 - **Setup:** [rules/install.md](rules/install.md)
 - **Security:** [rules/security.md](rules/security.md)
@@ -26,15 +26,17 @@ Web scraping, search, and browser automation. Returns clean markdown optimized f
 
 Run `firecrawl --status` to confirm CLI is installed and authenticated. If not ready, see [rules/install.md](rules/install.md).
 
-## Pick the Right Command
+## Commands
 
-| I need to...                                                       | Use                                      |
-| ------------------------------------------------------------------ | ---------------------------------------- |
-| Find pages on a topic (no URL yet)                                 | [`search`](references/search.md)         |
-| Get content from a URL                                             | [`scrape`](references/scrape.md)         |
-| Find a specific page on a large site                               | [`map`](references/map.md) then `scrape` |
-| Extract many pages from a site                                     | [`crawl`](references/crawl.md)           |
-| Interact: click, expand, scroll, log in, paginate, dismiss banners | [`browser`](references/browser.md)       |
+| I need to...                                                       | Command        | Reference                                      |
+| ------------------------------------------------------------------ | -------------- | ---------------------------------------------- |
+| Find pages on a topic (no URL yet)                                 | `search`       | [references/search.md](references/search.md)   |
+| Get content from a URL                                             | `scrape`       | [references/scrape.md](references/scrape.md)   |
+| Find a specific page on a large site                               | `map`          | [references/map.md](references/map.md)         |
+| Extract many pages from a site                                     | `crawl`        | [references/crawl.md](references/crawl.md)     |
+| Interact: click, expand, scroll, log in, paginate, dismiss banners | `browser`      | [references/browser.md](references/browser.md) |
+| Check remaining API credits                                        | `credit-usage` | `firecrawl credit-usage`                       |
+| Check auth, concurrency limits, credits                            | `--status`     | `firecrawl --status`                           |
 
 **Default to `scrape` — unless the request implies interaction.** Scrape handles static pages, JS-rendered SPAs, PDFs, and cached re-fetches. But if the user says click, expand, scroll, log in, paginate, dismiss, toggle, or interact — go straight to `browser`. Don't scrape first when the intent is clearly interactive. If you already scraped and the result is incomplete or needs interaction to get the rest, switch to `browser` immediately — don't hesitate.
 
@@ -62,18 +64,6 @@ Run `firecrawl --status` to confirm CLI is installed and authenticated. If not r
 **Read results incrementally.** Never dump entire output files into context. Use `grep`, `head`, or targeted reads.
 
 **Parallelize.** Run independent scrapes concurrently (check `firecrawl --status` for concurrency limits). Multi-URL `scrape` is automatically concurrent.
-
-## Command Index
-
-| Command        | One-liner                                   | Reference                                      |
-| -------------- | ------------------------------------------- | ---------------------------------------------- |
-| `scrape`       | Extract content from one or more URLs       | [references/scrape.md](references/scrape.md)   |
-| `search`       | Web search with optional full-page scraping | [references/search.md](references/search.md)   |
-| `browser`      | Cloud Chromium for interactive pages        | [references/browser.md](references/browser.md) |
-| `map`          | Discover URLs on a site                     | [references/map.md](references/map.md)         |
-| `crawl`        | Bulk extract from a site section            | [references/crawl.md](references/crawl.md)     |
-| `credit-usage` | Check remaining API credits                 | `firecrawl credit-usage`                       |
-| `--status`     | Check auth, concurrency limits, credits     | `firecrawl --status`                           |
 
 Run `firecrawl <command> --help` for full CLI option details.
 
