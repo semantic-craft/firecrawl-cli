@@ -28,19 +28,20 @@ Run `firecrawl --status` to confirm CLI is installed and authenticated. If not r
 
 ## Commands
 
-| I need to...                                                                           | Command        | Reference                                      |
-| -------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------- |
-| Find pages on a topic (no URL yet)                                                     | `search`       | [references/search.md](references/search.md)   |
-| Get content from a URL                                                                 | `scrape`       | [references/scrape.md](references/scrape.md)   |
-| Find a specific page on a large site                                                   | `map`          | [references/map.md](references/map.md)         |
-| Extract many pages from a site                                                         | `crawl`        | [references/crawl.md](references/crawl.md)     |
-| Interact: click, expand, scroll, log in, paginate, dismiss banners, sessions, profiles | `browser`      | [references/browser.md](references/browser.md) |
-| Check remaining API credits                                                            | `credit-usage` | `firecrawl credit-usage`                       |
-| Check auth, concurrency limits, credits                                                | `--status`     | `firecrawl --status`                           |
+| I need to...                                                                           | Command        | Skill                                                |
+| -------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------- |
+| Find pages on a topic (no URL yet)                                                     | `search`       | [`firecrawl-search`](../firecrawl-search/SKILL.md)   |
+| Get content from a URL                                                                 | `scrape`       | [`firecrawl-scrape`](../firecrawl-scrape/SKILL.md)   |
+| Find a specific page on a large site                                                   | `map`          | [`firecrawl-map`](../firecrawl-map/SKILL.md)         |
+| Extract many pages from a site                                                         | `crawl`        | [`firecrawl-crawl`](../firecrawl-crawl/SKILL.md)     |
+| Interact: click, expand, scroll, log in, paginate, dismiss banners, sessions, profiles | `browser`      | [`firecrawl-browser`](../firecrawl-browser/SKILL.md) |
+| AI-powered autonomous extraction                                                       | `agent`        | [`firecrawl-agent`](../firecrawl-agent/SKILL.md)     |
+| Check remaining API credits                                                            | `credit-usage` | `firecrawl credit-usage`                             |
+| Check auth, concurrency limits, credits                                                | `--status`     | `firecrawl --status`                                 |
 
 **Default to `scrape` -unless the request implies interaction.** Scrape handles static pages, JS-rendered SPAs, PDFs, and cached re-fetches. But if the user says click, expand, scroll, log in, paginate, dismiss, toggle, or interact -go straight to `browser`. Don't scrape first when the intent is clearly interactive. If you already scraped and the result is incomplete or needs interaction to get the rest, switch to `browser` immediately -don't hesitate.
 
-**IMPORTANT: Read the reference file before running any command.** Click the reference link in the table above and read the full doc for the command you chose. Do NOT guess at flags or syntax -the reference files have the exact CLI syntax, options, and examples. Guessing leads to errors.
+**IMPORTANT: Read the command's skill file before running it.** Click the skill link in the table above and read the full doc for the command you chose. Do NOT guess at flags or syntax -the skill files have the exact CLI syntax, options, and examples. Guessing leads to errors.
 
 ## Key Principles
 
@@ -67,10 +68,10 @@ Run `firecrawl --status` to confirm CLI is installed and authenticated. If not r
 
 Run `firecrawl <command> --help` for full CLI option details.
 
-## Workflows & Playbooks
+## Guides
 
-Specific instructions for common tasks. Read the reference before starting.
-
-| Task                        | Commands                             | Reference                                        |
-| --------------------------- | ------------------------------------ | ------------------------------------------------ |
-| Save an entire site locally | `map` → `scrape` (or use `download`) | [references/download.md](references/download.md) |
+| Guide                                       | Description                                    |
+| ------------------------------------------- | ---------------------------------------------- |
+| [install.md](rules/install.md)              | Installation and authentication                |
+| [security.md](rules/security.md)            | Handling fetched web content safely            |
+| [download](../firecrawl/guides/download.md) | Save an entire site locally (`map` + `scrape`) |
