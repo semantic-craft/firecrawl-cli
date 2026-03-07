@@ -11,11 +11,17 @@ import { Command } from 'commander';
 import { type Backend, BACKENDS, launchAgent } from './backends';
 
 import { register as registerCompetitorAnalysis } from './workflows/competitor-analysis';
+import { register as registerCompetitiveIntel } from './workflows/competitive-intel';
+import { register as registerCompanyDirectories } from './workflows/company-directories';
+import { register as registerDashboardReporting } from './workflows/dashboard-reporting';
 import { register as registerDeepResearch } from './workflows/deep-research';
+import { register as registerKnowledgeBase } from './workflows/knowledge-base';
+import { register as registerKnowledgeIngest } from './workflows/knowledge-ingest';
+import { register as registerLeadGen } from './workflows/lead-gen';
 import { register as registerLeadResearch } from './workflows/lead-research';
+import { register as registerMarketResearch } from './workflows/market-research';
 import { register as registerSeoAudit } from './workflows/seo-audit';
 import { register as registerQa } from './workflows/qa';
-import { register as registerKnowledgeBase } from './workflows/knowledge-base';
 import { register as registerResearchPapers } from './workflows/research-papers';
 import { register as registerDemo } from './workflows/demo';
 import { register as registerShop } from './workflows/shop';
@@ -24,11 +30,17 @@ import { register as registerShop } from './workflows/shop';
 
 function registerWorkflows(parentCmd: Command, backend: Backend): void {
   registerCompetitorAnalysis(parentCmd, backend);
+  registerCompetitiveIntel(parentCmd, backend);
+  registerCompanyDirectories(parentCmd, backend);
+  registerDashboardReporting(parentCmd, backend);
   registerDeepResearch(parentCmd, backend);
+  registerKnowledgeBase(parentCmd, backend);
+  registerKnowledgeIngest(parentCmd, backend);
+  registerLeadGen(parentCmd, backend);
   registerLeadResearch(parentCmd, backend);
+  registerMarketResearch(parentCmd, backend);
   registerSeoAudit(parentCmd, backend);
   registerQa(parentCmd, backend);
-  registerKnowledgeBase(parentCmd, backend);
   registerResearchPapers(parentCmd, backend);
   registerDemo(parentCmd, backend);
   registerShop(parentCmd, backend);
@@ -40,11 +52,17 @@ function buildHelpText(cmdName: string): string {
   return `
 Workflows:
   competitor-analysis    Scrape a site + competitors, compare features, pricing, positioning
+  competitive-intel      Monitor competitor dashboards, pricing tiers, and feature changes
+  company-directories    Scrape startup directories (YC, Crunchbase, etc.) into structured lists
+  dashboard-reporting    Pull metrics from analytics dashboards and internal tools via browser
   deep-research          Multi-source research with configurable depth (5-25+ sources)
+  knowledge-base         Build a knowledge base from web content (docs, RAG, fine-tuning)
+  knowledge-ingest       Extract auth-gated docs portals into structured JSON or markdown
+  lead-gen               Extract prospect contact details from databases at scale via browser
   lead-research          Pre-meeting intelligence brief on a company or person
+  market-research        Extract financial data, earnings, and market metrics via browser
   seo-audit              Map a site, check meta/headings, compare to competitors
   qa                     Spawn parallel browser agents to QA test a live site
-  knowledge-base         Build a knowledge base from web content (docs, RAG, fine-tuning)
   research-papers        Find and synthesize research papers, whitepapers, and PDFs
   demo                   Walk through a product's key flows using cloud browser
   shop                   Research products across the web, then buy using your saved Amazon session
@@ -86,7 +104,30 @@ Examples:
   Research and shop -- find the best deal, then add to your Amazon cart:
   $ firecrawl ${cmdName} shop "mac mini for SF office delivery"
   $ firecrawl ${cmdName} shop "best mechanical keyboard for developers"
-  $ firecrawl ${cmdName} shop "noise cancelling earbuds under 200"
+
+  Monitor competitor pricing and feature changes weekly:
+  $ firecrawl ${cmdName} competitive-intel "Linear, Asana, Monday.com"
+  $ firecrawl ${cmdName} competitive-intel https://openai.com https://anthropic.com
+
+  Build targeted company lists from startup directories:
+  $ firecrawl ${cmdName} company-directories "YC Series A B2B SaaS"
+  $ firecrawl ${cmdName} company-directories
+
+  Ingest auth-gated docs portals into structured data:
+  $ firecrawl ${cmdName} knowledge-ingest https://docs.internal.company.com
+  $ firecrawl ${cmdName} knowledge-ingest https://notion.so/team-wiki
+
+  Extract financial data and market metrics:
+  $ firecrawl ${cmdName} market-research "cloud infrastructure market"
+  $ firecrawl ${cmdName} market-research "AI SaaS companies"
+
+  Generate leads from prospect databases at scale:
+  $ firecrawl ${cmdName} lead-gen "CTOs at Series B fintech startups"
+  $ firecrawl ${cmdName} lead-gen "VP Engineering at healthcare companies"
+
+  Pull metrics from analytics dashboards behind login walls:
+  $ firecrawl ${cmdName} dashboard-reporting "analytics.google.com, app.mixpanel.com"
+  $ firecrawl ${cmdName} dashboard-reporting https://app.stripe.com/dashboard
 
   Run any workflow fully interactive (no args, prompts guide you):
   $ firecrawl ${cmdName} competitor-analysis

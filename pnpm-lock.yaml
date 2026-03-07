@@ -12,8 +12,8 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1(@types/node@20.19.27)
       '@mendable/firecrawl-js':
-        specifier: 4.15.3
-        version: 4.15.3
+        specifier: 4.15.4
+        version: 4.15.4
       commander:
         specifier: ^14.0.2
         version: 14.0.2
@@ -332,8 +332,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@mendable/firecrawl-js@4.15.3':
-    resolution: {integrity: sha512-sKVU0D5CzHs/+pmx6T7wVTJdjZwDuxozG/rIMGzSURthbqIjQtnLwQ4d3Ygjd42+eJzlURjhZTpEuTYEwrpbiQ==}
+  '@mendable/firecrawl-js@4.15.4':
+    resolution: {integrity: sha512-uUjMMveMWrfNA85IzwPJygSaw5C1fFIHM4CWmnUUNEQBq4Zp1Aax5XPZp/Yo6zoLwjgkhr/KCN2XZ7NK519L1Q==}
     engines: {node: '>=22.0.0'}
 
   '@rollup/rollup-android-arm-eabi@4.55.1':
@@ -1259,7 +1259,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@mendable/firecrawl-js@4.15.3':
+  '@mendable/firecrawl-js@4.15.4':
     dependencies:
       axios: 1.13.6
       firecrawl: 4.15.2
