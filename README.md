@@ -790,37 +790,73 @@ See the full documentation: **[Experimental Workflows ->](src/commands/experimen
 
 ## Testing Workflows Locally
 
-After building the CLI (`pnpm run build`), you can test the interactive AI workflow sessions with any supported backend:
-
-### Claude Code
+After building the CLI (`pnpm run build`), every workflow works with all three backends — just swap the command name:
 
 ```bash
-# See all workflows
-node dist/index.js claude --help
-
-# Run a workflow
-node dist/index.js claude deep-research "RAG pipeline tools landscape"
-node dist/index.js claude competitor-analysis https://firecrawl.dev
-node dist/index.js claude lead-research "Vercel"
-
-# Natural language passthrough (no workflow name -- just describe the task)
-node dist/index.js claude "scrape the firecrawl docs and summarize"
+# Help
+firecrawl claude --help
+firecrawl codex --help
+firecrawl opencode --help
 ```
 
-### Codex (OpenAI)
+### QA Testing
 
 ```bash
-node dist/index.js codex --help
-node dist/index.js codex deep-research "web scraping best practices"
-node dist/index.js codex competitor-analysis https://crawlee.dev
+firecrawl claude qa https://myapp.com
+firecrawl codex qa https://myapp.com
+firecrawl opencode qa https://myapp.com
 ```
 
-### OpenCode
+### Product Demo Walkthrough
 
 ```bash
-node dist/index.js opencode --help
-node dist/index.js opencode lead-research "Stripe"
-node dist/index.js opencode seo-audit https://example.com
+firecrawl claude demo https://resend.com
+firecrawl codex demo https://neon.tech
+firecrawl opencode demo https://linear.app
+```
+
+### Competitor Analysis
+
+```bash
+firecrawl claude competitor-analysis https://firecrawl.dev
+firecrawl codex competitor-analysis https://crawlee.dev
+firecrawl opencode competitor-analysis https://apify.com
+```
+
+### Deep Research
+
+```bash
+firecrawl claude deep-research "RAG pipeline data ingestion tools"
+firecrawl codex deep-research "web scraping best practices 2025"
+firecrawl opencode deep-research "browser automation frameworks comparison"
+```
+
+### Other Workflows
+
+```bash
+# Lead research
+firecrawl claude lead-research "Vercel"
+firecrawl codex lead-research "Stripe"
+
+# SEO audit
+firecrawl opencode seo-audit https://example.com
+
+# Knowledge base
+firecrawl claude knowledge-base https://docs.langchain.com
+
+# Research papers
+firecrawl codex research-papers "web scraping compliance HIPAA"
+
+# Shopping
+firecrawl claude shop "best mechanical keyboard for developers"
+```
+
+### Natural Language (no workflow name)
+
+```bash
+firecrawl claude "scrape the firecrawl docs and summarize"
+firecrawl codex "find pricing for crawlee vs scrapy"
+firecrawl opencode "compare Firecrawl and Apify features"
 ```
 
 Add `-y` to any command to auto-approve tool permissions (maps to `--dangerously-skip-permissions` for Claude, `--full-auto` for Codex).
@@ -831,7 +867,7 @@ Use `firecrawl browser launch --json` to get a live view URL, then pass it to yo
 
 ```bash
 # Launch a browser session and grab the live view URL
-LIVE_URL=$(firecrawl browser launch --json | jq -r '.interactiveLiveViewUrl // .liveViewUrl')
+LIVE_URL=$(firecrawl browser launch --json | jq -r '.liveViewUrl')
 
 # Pass it to Claude Code
 claude --append-system-prompt "A cloud browser session is running. Live view: $LIVE_URL -- use \`firecrawl browser\` commands to interact." \
@@ -844,9 +880,11 @@ codex --full-auto \
   "walk through the signup flow on https://example.com"
 
 # Or use the built-in workflow commands (session is auto-saved for firecrawl browser)
-firecrawl browser launch --json | jq -r '.interactiveLiveViewUrl // .liveViewUrl'
+firecrawl browser launch --json | jq -r '.liveViewUrl'
 firecrawl claude demo https://resend.com
 ```
+
+### Prerequisites
 
 Each backend requires its CLI to be installed separately:
 
