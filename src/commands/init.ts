@@ -512,8 +512,8 @@ export async function handleInitCommand(
   console.log(`  ${orange}🔥 ${bold}firecrawl${reset} ${dim}init${reset}`);
   console.log('');
 
-  // Non-interactive mode (--yes skips all prompts)
-  if (options.yes) {
+  // Non-interactive mode (--yes or --all skips all prompts)
+  if (options.yes || options.all) {
     await runNonInteractive(options);
     return;
   }
