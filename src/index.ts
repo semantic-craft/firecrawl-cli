@@ -1113,7 +1113,7 @@ program
     '[template]',
     'Template to scaffold (e.g. browser-nextjs, scrape-express)'
   )
-  .option('--all', 'Install skills to all detected agents (implies --yes)')
+  .option('--all', 'Install skills to all detected agents (implied by -y)')
   .option('-y, --yes', 'Skip confirmation prompts for skills installation')
   .option('-g, --global', 'Install skills globally (user-level)')
   .option('-a, --agent <agent>', 'Install skills to a specific agent')
@@ -1149,6 +1149,10 @@ program
   .argument('<subcommand>', 'What to set up: "skills" or "mcp"')
   .option('-g, --global', 'Install globally (user-level)')
   .option('-a, --agent <agent>', 'Install to a specific agent')
+  .option(
+    '-s, --skill <skill>',
+    'Install a specific skill (e.g., firecrawl-browser)'
+  )
   .action(async (subcommand: SetupSubcommand, options) => {
     await handleSetupCommand(subcommand, options);
   });

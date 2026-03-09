@@ -214,7 +214,14 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
     switch (integration) {
       case 'skills': {
         console.log(`\n  Setting up skills...`);
-        const args = ['npx', '-y', 'skills', 'add', 'firecrawl/cli'];
+        const args = [
+          'npx',
+          '-y',
+          'skills',
+          'add',
+          'firecrawl/cli',
+          '--full-depth',
+        ];
         if (options.all) args.push('--all');
         if (options.yes || options.all) args.push('--yes');
         if (options.global) args.push('--global');
@@ -591,7 +598,7 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
       console.log(`${stepLabel()} Authenticating with Firecrawl...`);
       try {
         let result: { apiKey: string; apiUrl?: string; teamName?: string };
-        if (options.browser) {
+        if (options.browser || !options.apiKey) {
           result = await browserLogin();
         } else {
           result = await interactiveLogin();
@@ -614,8 +621,15 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
     console.log(
       `${stepLabel()} Installing firecrawl skill for AI coding agents...`
     );
-    const args = ['npx', '-y', 'skills', 'add', 'firecrawl/cli'];
-    if (options.all) args.push('--all');
+    const args = [
+      'npx',
+      '-y',
+      'skills',
+      'add',
+      'firecrawl/cli',
+      '--full-depth',
+    ];
+    if (options.all || options.yes) args.push('--all');
     if (options.yes || options.all) args.push('--yes');
     if (options.global) args.push('--global');
     if (options.agent) args.push('--agent', options.agent);
