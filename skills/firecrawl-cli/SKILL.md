@@ -372,3 +372,5 @@ firecrawl download https://docs.firecrawl.dev \
 Download options: `--limit <n>`, `--search <query>`, `--include-paths <paths>`, `--exclude-paths <paths>`, `--allow-subdomains`, `-y`
 
 Scrape options (all work with download): `-f <formats>`, `-H`, `-S`, `--screenshot`, `--full-page-screenshot`, `--only-main-content`, `--include-tags`, `--exclude-tags`, `--wait-for`, `--max-age`, `--country`, `--languages`
+
+<!-- sync test: minor change -->
