@@ -1149,10 +1149,6 @@ program
   .argument('<subcommand>', 'What to set up: "skills" or "mcp"')
   .option('-g, --global', 'Install globally (user-level)')
   .option('-a, --agent <agent>', 'Install to a specific agent')
-  .option(
-    '-s, --skill <skill>',
-    'Install a specific skill (e.g., firecrawl-browser)'
-  )
   .action(async (subcommand: SetupSubcommand, options) => {
     await handleSetupCommand(subcommand, options);
   });

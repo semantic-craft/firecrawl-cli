@@ -11,7 +11,6 @@ export type SetupSubcommand = 'skills' | 'mcp';
 export interface SetupOptions {
   global?: boolean;
   agent?: string;
-  skill?: string;
 }
 
 /**
@@ -40,18 +39,18 @@ export async function handleSetupCommand(
 }
 
 async function installSkills(options: SetupOptions): Promise<void> {
-  const args = ['npx', 'skills', 'add', 'firecrawl/cli', '--full-depth'];
-
-  if (options.global) {
-    args.push('--global');
-  }
+  const args = [
+    'npx',
+    'skills',
+    'add',
+    'firecrawl/cli',
+    '--full-depth',
+    '--global',
+    '--all',
+  ];
 
   if (options.agent) {
     args.push('--agent', options.agent);
-  }
-
-  if (options.skill) {
-    args.push('--skill', options.skill);
   }
 
   const cmd = args.join(' ');
