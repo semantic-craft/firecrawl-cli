@@ -375,3 +375,4 @@ Scrape options (all work with download): `-f <formats>`, `-H`, `-S`, `--screensh
 
 <!-- sync test: minor change -->
 <!-- sync test: branch trigger -->
+<!-- sync test: dual downstream -->
