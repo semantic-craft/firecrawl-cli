@@ -34,6 +34,9 @@ firecrawl scrape https://example.com https://example.com/blog https://example.co
 
 # Get markdown and links together
 firecrawl scrape "<url>" --format markdown,links -o .firecrawl/page.json
+
+# Ask a question about the page
+firecrawl scrape "https://example.com/pricing" --query "What is the enterprise plan price?"
 ```
 
 ## Options
@@ -41,6 +44,7 @@ firecrawl scrape "<url>" --format markdown,links -o .firecrawl/page.json
 | Option                   | Description                                                      |
 | ------------------------ | ---------------------------------------------------------------- |
 | `-f, --format <formats>` | Output formats: markdown, html, rawHtml, links, screenshot, json |
+| `-Q, --query <prompt>`   | Ask a question about the page content (5 credits)                |
 | `-H`                     | Include HTTP headers in output                                   |
 | `--only-main-content`    | Strip nav, footer, sidebar — main content only                   |
 | `--wait-for <ms>`        | Wait for JS rendering before scraping                            |
