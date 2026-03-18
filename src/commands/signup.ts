@@ -141,10 +141,7 @@ export async function handleSignupCommand(
     const acceptance = await promptInput(
       'Do you accept the Terms of Service? [Y/n]: '
     );
-    if (
-      acceptance.toLowerCase() === 'n' ||
-      acceptance.toLowerCase() === 'no'
-    ) {
+    if (acceptance.toLowerCase() === 'n' || acceptance.toLowerCase() === 'no') {
       console.log(
         '\nYou must accept the Terms of Service to create an account.'
       );
@@ -181,9 +178,7 @@ export async function handleSignupCommand(
 
     if (!response.ok || !data.success) {
       if (response.status === 409) {
-        console.error(
-          `\nA pending signup already exists for this email.`
-        );
+        console.error(`\nA pending signup already exists for this email.`);
         console.log(
           `Check your inbox for the confirmation email, or log in at: ${data.login_url || 'https://firecrawl.dev/signin'}`
         );
@@ -192,7 +187,9 @@ export async function handleSignupCommand(
         process.exit(1);
       }
       if (response.status === 403) {
-        console.error(`\n${data.error || 'This email has blocked agent signups.'}`);
+        console.error(
+          `\n${data.error || 'This email has blocked agent signups.'}`
+        );
         console.log(`\nLog in with an existing account instead:`);
         console.log(`  firecrawl login`);
         process.exit(1);
@@ -203,9 +200,7 @@ export async function handleSignupCommand(
         );
         process.exit(1);
       }
-      console.error(
-        `\nSignup failed: ${data.error || 'Unknown error'}`
-      );
+      console.error(`\nSignup failed: ${data.error || 'Unknown error'}`);
       process.exit(1);
     }
 

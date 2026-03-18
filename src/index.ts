@@ -1122,10 +1122,7 @@ program
     '--agent-name <name>',
     'Name of the AI agent creating the account (auto-detected if not set)'
   )
-  .option(
-    '--accept-terms',
-    'Accept the Terms of Service without prompting'
-  )
+  .option('--accept-terms', 'Accept the Terms of Service without prompting')
   .option('--api-url <url>', 'API URL (default: https://api.firecrawl.dev)')
   .option('--json', 'Output as JSON format', false)
   .action(async (options) => {
