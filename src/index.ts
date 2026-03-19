@@ -28,7 +28,6 @@ import {
 import { handleVersionCommand } from './commands/version';
 import { handleLoginCommand } from './commands/login';
 import { handleLogoutCommand } from './commands/logout';
-import { handleSignupCommand } from './commands/signup';
 import {
   handleInitCommand,
   scaffoldTemplate,
@@ -1107,32 +1106,6 @@ program
   .description('Logout and clear stored credentials')
   .action(async () => {
     await handleLogoutCommand();
-  });
-
-program
-  .command('signup')
-  .description(
-    'Create a Firecrawl account with free credits (for AI agents setting up on behalf of users)'
-  )
-  .option(
-    '-e, --email <email>',
-    'Email address for the account (skips interactive prompt)'
-  )
-  .option(
-    '--agent-name <name>',
-    'Name of the AI agent creating the account (auto-detected if not set)'
-  )
-  .option('--accept-terms', 'Accept the Terms of Service without prompting')
-  .option('--api-url <url>', 'API URL (default: https://api.firecrawl.dev)')
-  .option('--json', 'Output as JSON format', false)
-  .action(async (options) => {
-    await handleSignupCommand({
-      email: options.email,
-      agentName: options.agentName,
-      acceptTerms: options.acceptTerms,
-      apiUrl: options.apiUrl,
-      json: options.json,
-    });
   });
 
 program
