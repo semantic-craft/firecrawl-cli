@@ -11,6 +11,7 @@ import type {
 } from '../types/scrape';
 import { getClient } from '../utils/client';
 import { handleScrapeOutput, writeOutput } from '../utils/output';
+import { saveInteractSession } from '../utils/interact-session';
 import { getOrigin } from '../utils/url';
 import { executeMap } from './map';
 import { getStatus } from './status';
@@ -117,6 +118,19 @@ export async function executeScrape(
     const result = await app.scrape(options.url, scrapeParams);
     const requestEndTime = Date.now();
     outputTiming(options, requestStartTime, requestEndTime);
+
+    const scrapeId = result?.metadata?.scrapeId;
+    if (scrapeId) {
+      try {
+        saveInteractSession({
+          scrapeId,
+          url: options.url,
+          createdAt: new Date().toISOString(),
+        });
+      } catch {
+        // Non-critical — don't fail the scrape
+      }
+    }
 
     return {
       success: true,
