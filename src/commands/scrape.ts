@@ -111,6 +111,10 @@ export async function executeScrape(
     scrapeParams.location = options.location;
   }
 
+  if (options.profile) {
+    scrapeParams.profile = options.profile;
+  }
+
   // Execute scrape with timing - only wrap the scrape call in try-catch
   const requestStartTime = Date.now();
 

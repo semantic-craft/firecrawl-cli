@@ -90,6 +90,14 @@ export function parseScrapeOptions(options: any): ScrapeOptions {
     }
   }
 
+  let profile: { name: string; saveChanges?: boolean } | undefined;
+  if (options.profile) {
+    profile = {
+      name: options.profile,
+      saveChanges: options.saveChanges,
+    };
+  }
+
   return {
     url: options.url,
     formats,
@@ -112,5 +120,6 @@ export function parseScrapeOptions(options: any): ScrapeOptions {
     maxAge: options.maxAge,
     location,
     query: options.query,
+    profile,
   };
 }

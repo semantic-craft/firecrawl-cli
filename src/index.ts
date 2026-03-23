@@ -164,6 +164,14 @@ function createScrapeCommand(): Command {
       '-Q, --query <prompt>',
       'Ask a question about the page content (query format)'
     )
+    .option(
+      '--profile <name>',
+      'Persistent browser profile name for maintaining state across scrapes'
+    )
+    .option(
+      '--no-save-changes',
+      'Load existing profile data without saving changes (default: saves changes)'
+    )
 
     .action(async (positionalArgs, options) => {
       // Collect URLs from positional args and --url option
