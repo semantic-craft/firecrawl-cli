@@ -54,13 +54,11 @@ export async function handleInteractExecute(
     const { apiKey, apiUrl } = resolveApiConfig(options);
 
     const stored = loadInteractSession();
-    if (!options.scrapeId && stored) {
-      process.stderr.write(
-        `Using scrape ${scrapeId}` +
-          (stored.url ? ` (${stored.url})` : '') +
-          '\n'
-      );
-    }
+    const storedUrl =
+      stored?.url && stored.scrapeId === scrapeId ? stored.url : undefined;
+    process.stderr.write(
+      `Using scrape ${scrapeId}` + (storedUrl ? ` (${storedUrl})` : '') + '\n'
+    );
 
     const body: Record<string, unknown> = { origin: 'cli', integration: 'cli' };
 

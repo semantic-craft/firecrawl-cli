@@ -73,6 +73,8 @@ export function clearInteractSession(): void {
   }
 }
 
+const SESSION_STALE_MS = 10 * 60 * 1000; // 10 minutes
+
 /**
  * Resolve scrape ID from explicit override or stored session
  */
@@ -80,7 +82,17 @@ export function getScrapeId(overrideId?: string): string {
   if (overrideId) return overrideId;
 
   const stored = loadInteractSession();
-  if (stored) return stored.scrapeId;
+  if (stored) {
+    const ageMs = Date.now() - new Date(stored.createdAt).getTime();
+    if (ageMs > SESSION_STALE_MS) {
+      const mins = Math.round(ageMs / 60_000);
+      process.stderr.write(
+        `Warning: Last scrape session is ${mins}m old and may have expired. ` +
+          `Re-scrape or pass --scrape-id explicitly.\n`
+      );
+    }
+    return stored.scrapeId;
+  }
 
   throw new Error(
     'No active scrape session. Scrape a URL first:\n' +
