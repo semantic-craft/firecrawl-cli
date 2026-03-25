@@ -6,6 +6,7 @@
 import { execSync } from 'child_process';
 import { getApiKey } from '../utils/config';
 import { buildSkillsInstallArgs } from './skills-install';
+import { hasNpx, installSkillsNative } from './skills-native';
 
 export type SetupSubcommand = 'skills' | 'mcp';
 
@@ -40,18 +41,32 @@ export async function handleSetupCommand(
 }
 
 async function installSkills(options: SetupOptions): Promise<void> {
-  const args = buildSkillsInstallArgs({
-    agent: options.agent,
-    global: true,
-    includeNpxYes: true,
-  });
+  if (hasNpx()) {
+    const args = buildSkillsInstallArgs({
+      agent: options.agent,
+      global: true,
+      includeNpxYes: true,
+    });
 
-  const cmd = args.join(' ');
-  console.log(`Running: ${cmd}\n`);
+    const cmd = args.join(' ');
+    console.log(`Running: ${cmd}\n`);
 
+    try {
+      execSync(cmd, { stdio: 'inherit' });
+      return;
+    } catch {
+      process.exit(1);
+    }
+  }
+
+  // Fallback: native install (no npx/Node required)
   try {
-    execSync(cmd, { stdio: 'inherit' });
-  } catch {
+    await installSkillsNative();
+  } catch (error) {
+    console.error(
+      'Failed to install skills:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     process.exit(1);
   }
 }
