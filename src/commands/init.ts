@@ -9,6 +9,7 @@ import { isAuthenticated, browserLogin, interactiveLogin } from '../utils/auth';
 import { saveCredentials } from '../utils/credentials';
 import { updateConfig, getApiKey } from '../utils/config';
 import { buildSkillsInstallArgs } from './skills-install';
+import { hasNpx, installSkillsNative } from './skills-native';
 
 export interface InitOptions {
   global?: boolean;
@@ -215,19 +216,29 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
     switch (integration) {
       case 'skills': {
         console.log(`\n  Setting up skills...`);
-        const args = buildSkillsInstallArgs({
-          agent: options.agent,
-          yes: options.yes || options.all,
-          global: true,
-          includeNpxYes: true,
-        });
-        try {
-          execSync(args.join(' '), { stdio: 'inherit' });
-          console.log(`  ${green}✓${reset} Skills installed`);
-        } catch {
-          console.error(
-            '  Failed to install skills. Run "firecrawl setup skills" later.'
-          );
+        if (hasNpx()) {
+          const args = buildSkillsInstallArgs({
+            agent: options.agent,
+            yes: options.yes || options.all,
+            global: true,
+            includeNpxYes: true,
+          });
+          try {
+            execSync(args.join(' '), { stdio: 'inherit' });
+            console.log(`  ${green}✓${reset} Skills installed`);
+          } catch {
+            console.error(
+              '  Failed to install skills. Run "firecrawl setup skills" later.'
+            );
+          }
+        } else {
+          try {
+            await installSkillsNative();
+          } catch {
+            console.error(
+              '  Failed to install skills. Run "firecrawl setup skills" later.'
+            );
+          }
         }
         break;
       }
@@ -616,20 +627,32 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
     console.log(
       `${stepLabel()} Installing firecrawl skill for AI coding agents...`
     );
-    const args = buildSkillsInstallArgs({
-      agent: options.agent,
-      yes: true,
-      global: true,
-      includeNpxYes: true,
-    });
-    try {
-      execSync(args.join(' '), { stdio: 'inherit' });
-      console.log(`${green}✓${reset} Skills installed\n`);
-    } catch {
-      console.error(
-        '\nFailed to install skills. You can retry with: firecrawl setup skills'
-      );
-      process.exit(1);
+    if (hasNpx()) {
+      const args = buildSkillsInstallArgs({
+        agent: options.agent,
+        yes: true,
+        global: true,
+        includeNpxYes: true,
+      });
+      try {
+        execSync(args.join(' '), { stdio: 'inherit' });
+        console.log(`${green}✓${reset} Skills installed\n`);
+      } catch {
+        console.error(
+          '\nFailed to install skills. You can retry with: firecrawl setup skills'
+        );
+        process.exit(1);
+      }
+    } else {
+      try {
+        await installSkillsNative();
+        console.log('');
+      } catch {
+        console.error(
+          '\nFailed to install skills. You can retry with: firecrawl setup skills'
+        );
+        process.exit(1);
+      }
     }
   }
 

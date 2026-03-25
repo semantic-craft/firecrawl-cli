@@ -204,9 +204,33 @@ main() {
   echo ""
   success "Firecrawl CLI v${version} installed successfully!"
   echo ""
-  echo "  Run 'firecrawl --help' to get started."
-  echo "  Run 'firecrawl login' to authenticate with your API key."
-  echo ""
+
+  # Resolve the binary path (may need updated PATH)
+  local firecrawl_bin="$install_dir/firecrawl"
+
+  # Offer to continue with setup (login, skills, integrations)
+  if [ -t 0 ] && [ -t 1 ]; then
+    # Interactive terminal — prompt
+    echo "  Next: authenticate and install AI coding skills."
+    echo ""
+    printf "  Continue with setup? [Y/n] "
+    read -r answer </dev/tty || answer=""
+    echo ""
+
+    case "$answer" in
+      [nN]*)
+        echo "  Run 'firecrawl init --skip-install' later to set up."
+        echo ""
+        ;;
+      *)
+        "$firecrawl_bin" init --skip-install
+        ;;
+    esac
+  else
+    # Non-interactive (piped) — print instructions
+    echo "  Run 'firecrawl init --skip-install' to authenticate and install skills."
+    echo ""
+  fi
 }
 
 main "$@"
