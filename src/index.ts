@@ -25,6 +25,7 @@ import {
   handleBrowserClose,
   handleBrowserQuickExecute,
 } from './commands/browser';
+import { handleInteractExecute, handleInteractStop } from './commands/interact';
 import { handleVersionCommand } from './commands/version';
 import { handleLoginCommand } from './commands/login';
 import { handleLogoutCommand } from './commands/logout';
@@ -62,6 +63,7 @@ const AUTH_REQUIRED_COMMANDS = [
   'search',
   'agent',
   'browser',
+  'interact',
   'credit-usage',
 ];
 
@@ -161,6 +163,14 @@ function createScrapeCommand(): Command {
     .option(
       '-Q, --query <prompt>',
       'Ask a question about the page content (query format)'
+    )
+    .option(
+      '--profile <name>',
+      'Persistent browser profile name for maintaining state across scrapes'
+    )
+    .option(
+      '--no-save-changes',
+      'Load existing profile data without saving changes (default: saves changes)'
     )
 
     .action(async (positionalArgs, options) => {
@@ -735,12 +745,12 @@ function createAgentCommand(): Command {
 }
 
 /**
- * Create and configure the browser command
+ * Create and configure the browser command (deprecated — prefer scrape + interact)
  */
 function createBrowserCommand(): Command {
   const browserCmd = new Command('browser')
     .description(
-      'Launch cloud browser sessions and execute Python, JavaScript, or bash code remotely via Playwright'
+      '[Deprecated: prefer scrape + interact] Launch cloud browser sessions and execute code remotely via Playwright'
     )
     .argument('[code]', 'Shorthand: auto-launch session + execute command')
     .option(
@@ -1029,12 +1039,156 @@ Examples:
   return browserCmd;
 }
 
-// Add crawl, map, search, agent, and browser commands to main program
+/**
+ * Create and configure the interact command
+ */
+function createInteractCommand(): Command {
+  const interactCmd = new Command('interact')
+    .description(
+      'Interact with a scraped page in a live browser session. Run AI prompts or execute code against any previous scrape.'
+    )
+    .argument('[args...]', 'Prompt text, or scrape-id followed by prompt text')
+    .option('-c, --code <code>', 'Code to execute in the browser sandbox')
+    .option(
+      '-p, --prompt <text>',
+      'AI prompt (alternative to positional argument)'
+    )
+    .option('-s, --scrape-id <id>', 'Scrape job ID (default: last scrape)')
+    .option('--node', 'Execute code as Node.js/Playwright (default)', false)
+    .option('--python', 'Execute code as Python/Playwright', false)
+    .option('--bash', 'Execute code as Bash', false)
+    .option(
+      '--timeout <seconds>',
+      'Timeout in seconds (1-300, default: 30)',
+      parseInt
+    )
+    .option(
+      '-k, --api-key <key>',
+      'Firecrawl API key (overrides global --api-key)'
+    )
+    .option('--api-url <url>', 'API URL (overrides global --api-url)')
+    .option('-o, --output <path>', 'Output file path (default: stdout)')
+    .option('--json', 'Output as JSON format', false)
+    .addHelpText(
+      'after',
+      `
+  The scrape ID is saved automatically after every scrape, so you
+  don't need to pass it explicitly. Just scrape and interact:
+
+    $ firecrawl scrape https://example.com
+    $ firecrawl interact "Click the pricing tab"
+    $ firecrawl interact "What is the price of the Pro plan?"
+    $ firecrawl interact stop
+
+  You can also pass a scrape ID explicitly:
+
+    $ firecrawl interact <scrape-id> "Click the pricing tab"
+    $ firecrawl interact -s <scrape-id> "Click the pricing tab"
+
+  Code execution:
+
+    $ firecrawl interact -c "await page.title()"
+    $ firecrawl interact -c "print(await page.title())" --python
+    $ firecrawl interact -c "snapshot" --bash
+`
+    )
+    .action(async (positionalArgs: string[], options) => {
+      // Disambiguate positional args: if the first arg looks like a UUID,
+      // treat it as scrape-id; otherwise treat everything as prompt text.
+      let scrapeId: string | undefined = options.scrapeId;
+      let prompt: string | undefined = options.prompt;
+
+      if (positionalArgs.length > 0) {
+        if (!scrapeId && isJobId(positionalArgs[0])) {
+          scrapeId = positionalArgs[0];
+          if (positionalArgs.length > 1) {
+            prompt = prompt || positionalArgs.slice(1).join(' ');
+          }
+        } else {
+          prompt = prompt || positionalArgs.join(' ');
+        }
+      }
+
+      if (!options.code && !prompt) {
+        console.error(
+          'Error: Provide an AI prompt or use --code to execute code.\n' +
+            'Example: firecrawl interact "Click the pricing tab"'
+        );
+        process.exit(1);
+      }
+
+      if (options.code && prompt) {
+        console.error('Error: Provide either a prompt or --code, not both.');
+        process.exit(1);
+      }
+
+      const flagCount = [options.python, options.node, options.bash].filter(
+        Boolean
+      ).length;
+      if (flagCount > 1) {
+        console.error(
+          'Error: Only one of --python, --node, or --bash can be specified'
+        );
+        process.exit(1);
+      }
+      const language = options.python
+        ? 'python'
+        : options.bash
+          ? 'bash'
+          : 'node';
+
+      await handleInteractExecute({
+        scrapeId,
+        prompt: options.code ? undefined : prompt,
+        code: options.code,
+        language,
+        timeout: options.timeout,
+        apiKey: options.apiKey,
+        apiUrl: options.apiUrl,
+        output: options.output,
+        json: options.json,
+      });
+    });
+
+  interactCmd
+    .command('stop')
+    .description('Stop the interactive browser session for a scrape')
+    .argument('[scrape-id]', 'Scrape job ID (default: last scrape)')
+    .option(
+      '-k, --api-key <key>',
+      'Firecrawl API key (overrides global --api-key)'
+    )
+    .option('--api-url <url>', 'API URL (overrides global --api-url)')
+    .option('-o, --output <path>', 'Output file path (default: stdout)')
+    .option('--json', 'Output as JSON format', false)
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ firecrawl interact stop
+  $ firecrawl interact stop <scrape-id>
+`
+    )
+    .action(async (scrapeId, options) => {
+      await handleInteractStop({
+        scrapeId,
+        apiKey: options.apiKey,
+        apiUrl: options.apiUrl,
+        output: options.output,
+        json: options.json,
+      });
+    });
+
+  return interactCmd;
+}
+
+// Add crawl, map, search, agent, browser, and interact commands to main program
 program.addCommand(createCrawlCommand());
 program.addCommand(createMapCommand());
 program.addCommand(createSearchCommand());
 program.addCommand(createAgentCommand());
 program.addCommand(createBrowserCommand());
+program.addCommand(createInteractCommand());
 
 // Experimental: AI workflow commands
 program.addCommand(createClaudeCommand());

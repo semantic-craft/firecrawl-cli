@@ -57,6 +57,11 @@ export interface ScrapeOptions {
   location?: ScrapeLocation;
   /** Question to ask about the page content (query format) */
   query?: string;
+  /** Persistent browser profile for maintaining state across scrapes */
+  profile?: {
+    name: string;
+    saveChanges?: boolean;
+  };
 }
 
 export interface ScrapeResult {

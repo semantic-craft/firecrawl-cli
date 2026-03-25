@@ -11,6 +11,10 @@ import type {
 } from '../types/scrape';
 import { getClient } from '../utils/client';
 import { handleScrapeOutput, writeOutput } from '../utils/output';
+import {
+  saveInteractSession,
+  clearInteractSession,
+} from '../utils/interact-session';
 import { getOrigin } from '../utils/url';
 import { executeMap } from './map';
 import { getStatus } from './status';
@@ -110,6 +114,10 @@ export async function executeScrape(
     scrapeParams.location = options.location;
   }
 
+  if (options.profile) {
+    scrapeParams.profile = options.profile;
+  }
+
   // Execute scrape with timing - only wrap the scrape call in try-catch
   const requestStartTime = Date.now();
 
@@ -117,6 +125,23 @@ export async function executeScrape(
     const result = await app.scrape(options.url, scrapeParams);
     const requestEndTime = Date.now();
     outputTiming(options, requestStartTime, requestEndTime);
+
+    const scrapeId = result?.metadata?.scrapeId;
+    if (scrapeId) {
+      process.stderr.write(`Scrape ID: ${scrapeId}\n`);
+      try {
+        saveInteractSession({
+          scrapeId,
+          url: options.url,
+          createdAt: new Date().toISOString(),
+        });
+      } catch {
+        process.stderr.write(
+          `Warning: Could not save scrape session. ` +
+            `Use --scrape-id ${scrapeId} with interact.\n`
+        );
+      }
+    }
 
     return {
       success: true,
@@ -230,13 +255,16 @@ export async function handleMultiScrapeCommand(
 
   await Promise.all(promises);
 
+  clearInteractSession();
   process.stderr.write(
     `\nCompleted: ${completedCount - errorCount}/${total} succeeded`
   );
   if (errorCount > 0) {
     process.stderr.write(`, ${errorCount} failed`);
   }
-  process.stderr.write('\n');
+  process.stderr.write(
+    '\nTip: Use --scrape-id <id> with interact to target a specific scrape.\n'
+  );
 
   if (errorCount === total) {
     process.exit(1);
