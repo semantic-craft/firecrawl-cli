@@ -170,7 +170,6 @@ main() {
   local checksum_url="${base_url}/checksums.txt"
 
   # Download to temp directory
-  local tmp_dir
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "$tmp_dir"' EXIT
 
