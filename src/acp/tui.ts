@@ -1,26 +1,39 @@
 /**
- * Firecrawl agent display — inline terminal output, no ANSI tricks.
+ * Firecrawl agent display — clean inline terminal output.
  *
- * Shows firecrawl operations prominently, background operations dimmed,
- * and status summaries at natural breakpoints.
- * Works in any terminal, pipeable, agent-friendly.
+ * Design principles (inspired by Codex CLI):
+ * - Show firecrawl operations once, update status in place
+ * - Deduplicate repeated calls to the same URL
+ * - Group background work into single status lines
+ * - Visual separation between agent text and tool execution
+ * - Status summary at turn boundaries
  */
 
 import type { ToolCallInfo } from './client';
 
-// ─── Style helpers (only if TTY) ────────────────────────────────────────────
+// ─── Style helpers (TTY-aware) ──────────────────────────────────────────────
 
 const isTTY = process.stderr.isTTY;
 const dim = (s: string) => (isTTY ? `\x1b[2m${s}\x1b[0m` : s);
 const green = (s: string) => (isTTY ? `\x1b[32m${s}\x1b[0m` : s);
 const red = (s: string) => (isTTY ? `\x1b[31m${s}\x1b[0m` : s);
-const cyan = (s: string) => (isTTY ? `\x1b[36m${s}\x1b[0m` : s);
+const bold = (s: string) => (isTTY ? `\x1b[1m${s}\x1b[0m` : s);
 
 // ─── Tool call categorization ───────────────────────────────────────────────
 
+type CallKind =
+  | 'search'
+  | 'scrape'
+  | 'map'
+  | 'crawl'
+  | 'extract'
+  | 'write'
+  | 'background';
+
 interface CallDescription {
   label: string;
-  prominent: boolean; // firecrawl ops = prominent, background work = dimmed
+  kind: CallKind;
+  dedupeKey: string; // for deduplication (e.g., URL)
 }
 
 function extractUrl(cmd: string, prefix: string): string | null {
@@ -36,87 +49,80 @@ function extractUrl(cmd: string, prefix: string): string | null {
   return null;
 }
 
-function describeCall(
+function categorizeCall(
   call: ToolCallInfo,
   sessionDir: string
 ): CallDescription | null {
   const input = call.rawInput as Record<string, unknown> | undefined;
   const title = call.title.toLowerCase();
 
-  // ── Terminal / Bash commands ───────────────────────────────────────────
   if (input?.command && typeof input.command === 'string') {
     const cmd = input.command.trim();
 
-    // Firecrawl commands — prominent
     if (cmd.startsWith('firecrawl search')) {
       const match = cmd.match(/firecrawl search\s+["']([^"']+)["']/);
+      const query = match ? match[1] : 'web';
       return {
-        label: match ? `Searching "${match[1]}"` : 'Searching',
-        prominent: true,
+        label: `Searching "${query}"`,
+        kind: 'search',
+        dedupeKey: `search:${query}`,
       };
     }
     if (cmd.startsWith('firecrawl scrape')) {
       const url = extractUrl(cmd, 'firecrawl scrape');
-      return url ? { label: `Scraping ${url}`, prominent: true } : null;
+      if (!url) return null;
+      return {
+        label: `Scraping ${url}`,
+        kind: 'scrape',
+        dedupeKey: `scrape:${url}`,
+      };
     }
     if (cmd.startsWith('firecrawl map')) {
       const url = extractUrl(cmd, 'firecrawl map');
-      return url ? { label: `Mapping ${url}`, prominent: true } : null;
+      if (!url) return null;
+      return { label: `Mapping ${url}`, kind: 'map', dedupeKey: `map:${url}` };
     }
     if (cmd.startsWith('firecrawl crawl')) {
       const url = extractUrl(cmd, 'firecrawl crawl');
-      return url ? { label: `Crawling ${url}`, prominent: true } : null;
+      if (!url) return null;
+      return {
+        label: `Crawling ${url}`,
+        kind: 'crawl',
+        dedupeKey: `crawl:${url}`,
+      };
     }
     if (cmd.startsWith('firecrawl agent')) {
-      return { label: 'Running extraction agent', prominent: true };
+      return {
+        label: 'Running extraction agent',
+        kind: 'extract',
+        dedupeKey: 'extract',
+      };
     }
-    if (cmd.startsWith('firecrawl')) {
-      return { label: 'Running firecrawl', prominent: true };
-    }
-
-    // Python / processing scripts — background
-    if (cmd.includes('python')) {
-      return { label: 'Processing data', prominent: false };
-    }
-
-    // Writing to session dir — prominent
     if (cmd.includes(sessionDir)) {
-      return { label: 'Writing output', prominent: true };
+      return {
+        label: 'Writing output',
+        kind: 'write',
+        dedupeKey: 'write-session',
+      };
     }
-
-    // Everything else is background
-    return { label: 'Processing', prominent: false };
+    // All other commands are background
+    return null;
   }
 
-  // ── File operations ───────────────────────────────────────────────────
+  // File writes to session dir
   if (input?.path && typeof input.path === 'string') {
     if (input.path.startsWith(sessionDir) && title.includes('write')) {
       const basename = input.path.split('/').pop() || input.path;
-      return { label: `Writing ${basename}`, prominent: true };
-    }
-    if (title.includes('read')) {
-      return { label: 'Reading sources', prominent: false };
+      return {
+        label: `Writing ${basename}`,
+        kind: 'write',
+        dedupeKey: `write:${basename}`,
+      };
     }
     return null;
   }
 
-  // ── Agent/Task spawning ───────────────────────────────────────────────
-  if (title.includes('task') || title.includes('agent')) {
-    return { label: 'Spawning agents', prominent: false };
-  }
-
-  // ── Tool search / setup ───────────────────────────────────────────────
-  if (title.includes('toolsearch') || title.includes('tool')) {
-    return { label: 'Setting up tools', prominent: false };
-  }
-
-  // ── Search / grep ─────────────────────────────────────────────────────
-  if (title.includes('grep') || title.includes('search')) {
-    return { label: 'Analyzing data', prominent: false };
-  }
-
-  // ── Catch-all for anything else ───────────────────────────────────────
-  return { label: 'Working', prominent: false };
+  return null;
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -138,12 +144,17 @@ export function startTUI(opts: {
   format: string;
   sessionDir: string;
 }): TUIHandle {
-  const pending = new Map<string, { label: string; prominent: boolean }>();
+  // Track calls by ID → description
+  const calls = new Map<string, CallDescription>();
+  // Track which dedupe keys we've already printed (to avoid duplicate lines)
+  const printed = new Set<string>();
+  // Track completed dedupe keys
+  const completed = new Set<string>();
+
   let credits = 0;
   const startedAt = Date.now();
-
-  // Collapse repeated dim labels (avoid 10x "Processing" lines)
-  let lastDimLabel = '';
+  let lastOutputWasText = false;
+  let backgroundShown = false;
 
   function elapsed(): string {
     const secs = Math.round((Date.now() - startedAt) / 1000);
@@ -159,41 +170,56 @@ export function startTUI(opts: {
     );
   }
 
+  function ensureNewSection() {
+    if (lastOutputWasText) {
+      lastOutputWasText = false;
+    }
+  }
+
   return {
     onText(text: string) {
-      // Reset dim dedup when agent writes text (new section)
-      lastDimLabel = '';
+      // If we were showing tool calls and now getting text, add spacing
+      if (!lastOutputWasText && printed.size > 0) {
+        process.stdout.write('\n');
+      }
       process.stdout.write(text);
+      lastOutputWasText = true;
+      backgroundShown = false;
     },
 
     onToolCall(call: ToolCallInfo) {
-      const desc = describeCall(call, opts.sessionDir);
-      if (!desc) return;
-      pending.set(call.id, desc);
-
-      if (desc.prominent) {
-        // Firecrawl operations — always show
-        lastDimLabel = '';
-        process.stderr.write(`  ${dim('·')} ${desc.label}\n`);
-      } else {
-        // Background work — show once per label to avoid spam
-        if (desc.label !== lastDimLabel) {
-          lastDimLabel = desc.label;
-          process.stderr.write(`  ${dim('· ' + desc.label)}\n`);
+      const desc = categorizeCall(call, opts.sessionDir);
+      if (!desc) {
+        // Background work — show a single "Working..." if we haven't yet
+        if (!backgroundShown && lastOutputWasText) {
+          // Don't print anything for background — the agent text provides context
         }
+        return;
       }
+
+      calls.set(call.id, desc);
+
+      // Deduplicate: don't print if we already showed this exact operation
+      if (printed.has(desc.dedupeKey)) return;
+      printed.add(desc.dedupeKey);
+
+      ensureNewSection();
+      process.stderr.write(`  ${dim('·')} ${desc.label}\n`);
     },
 
     onToolCallUpdate(call: ToolCallInfo) {
-      const desc = pending.get(call.id);
+      const desc = calls.get(call.id);
       if (!desc) return;
+
       if (call.status === 'completed' || call.status === 'errored') {
-        pending.delete(call.id);
-        // Only print done for prominent calls
-        if (desc.prominent) {
-          const icon = call.status === 'completed' ? green('✓') : red('✗');
-          process.stderr.write(`  ${icon} ${desc.label}\n`);
-        }
+        calls.delete(call.id);
+
+        // Only print completion if we haven't already for this dedupe key
+        if (completed.has(desc.dedupeKey)) return;
+        completed.add(desc.dedupeKey);
+
+        const icon = call.status === 'completed' ? green('✓') : red('✗');
+        process.stderr.write(`  ${icon} ${desc.label}\n`);
       }
     },
 
@@ -207,11 +233,15 @@ export function startTUI(opts: {
 
     pause() {
       process.stderr.write(`\n${statusLine()}\n`);
-      lastDimLabel = '';
+      lastOutputWasText = false;
     },
 
     resume() {
-      lastDimLabel = '';
+      // Reset dedup for next turn — same URLs may be re-scraped intentionally
+      printed.clear();
+      completed.clear();
+      backgroundShown = false;
+      lastOutputWasText = false;
     },
 
     cleanup() {
