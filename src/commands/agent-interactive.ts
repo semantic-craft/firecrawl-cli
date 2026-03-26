@@ -603,16 +603,44 @@ export async function runHeadlessAgent(opts: {
   const systemPrompt = buildSystemPrompt({ format, sessionDir });
   const userMessage = `Gather data: ${opts.prompt}.`;
 
+  // Run in background — fork a detached process and exit immediately
+  const { fork } = await import('child_process');
+  const workerPath = __filename;
+
+  const child = fork(
+    workerPath,
+    [
+      '__headless_worker__',
+      session.id,
+      selectedAgent.bin,
+      systemPrompt,
+      userMessage,
+    ],
+    {
+      detached: true,
+      stdio: 'ignore',
+    }
+  );
+  child.unref();
+
   console.log(
     `Running with ${selectedAgent.displayName} (session ${session.id})`
   );
   console.log(`Output will be written to: ${session.outputPath}`);
-  console.log(`Session log: ${sessionDir}/session.json`);
-  console.log('');
+  console.log(`Poll for progress: cat ${sessionDir}/session.json`);
+}
 
+// ─── Background worker (called by forked process) ──────────────────────────
+
+async function _runHeadlessWorker(
+  sessionId: string,
+  agentBin: string,
+  systemPrompt: string,
+  userMessage: string
+): Promise<void> {
   try {
     const agent = await connectToAgent({
-      bin: selectedAgent.bin,
+      bin: agentBin,
       systemPrompt,
       callbacks: {
         onText: () => {},
@@ -623,13 +651,17 @@ export async function runHeadlessAgent(opts: {
 
     await agent.prompt(userMessage);
     agent.close();
-
-    updateSession(session.id, { iterations: 1 });
-    console.log(`Done. ${session.outputPath}`);
-  } catch (error) {
-    console.error(
-      `Failed: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(1);
+    updateSession(sessionId, { iterations: 1 });
+  } catch {
+    // Session stays as-is — caller can check session.json for staleness
   }
+}
+
+// If this file is run as a forked worker
+if (process.argv[2] === '__headless_worker__') {
+  const [, , , sessionId, agentBin, systemPrompt, userMessage] = process.argv;
+  _runHeadlessWorker(sessionId, agentBin, systemPrompt, userMessage).then(
+    () => process.exit(0),
+    () => process.exit(1)
+  );
 }
