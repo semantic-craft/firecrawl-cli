@@ -716,22 +716,35 @@ export async function runHeadlessAgent(opts: {
   const systemPrompt = buildSystemPrompt({ format, sessionDir });
   const userMessage = `Gather data: ${opts.prompt}.`;
 
-  // Run in background — fork a detached process and exit immediately
-  const { fork } = await import('child_process');
-  const workerPath = __filename;
+  // Run in background — spawn detached process
+  const { spawn } = await import('child_process');
 
-  const child = fork(
-    workerPath,
-    [
-      '__headless_worker__',
-      session.id,
-      selectedAgent.bin,
+  // Write args to a temp file since system prompts can be huge
+  const fs = await import('fs');
+  const argsPath = `${sessionDir}/worker-args.json`;
+  fs.writeFileSync(
+    argsPath,
+    JSON.stringify({
+      sessionId: session.id,
+      agentBin: selectedAgent.bin,
       systemPrompt,
       userMessage,
+    })
+  );
+
+  // Spawn a detached node process that runs the worker
+  const child = spawn(
+    process.execPath, // node or tsx
+    [
+      ...process.execArgv, // preserve tsx loader flags
+      __filename,
+      '__headless_worker__',
+      argsPath,
     ],
     {
       detached: true,
       stdio: 'ignore',
+      env: { ...process.env },
     }
   );
   child.unref();
@@ -805,11 +818,23 @@ async function _runHeadlessWorker(
   }
 }
 
-// If this file is run as a forked worker
+// If this file is run as a background worker
 if (process.argv[2] === '__headless_worker__') {
-  const [, , , sessionId, agentBin, systemPrompt, userMessage] = process.argv;
-  _runHeadlessWorker(sessionId, agentBin, systemPrompt, userMessage).then(
-    () => process.exit(0),
-    () => process.exit(1)
-  );
+  const argsPath = process.argv[3];
+  import('fs').then((fs) => {
+    const args = JSON.parse(fs.readFileSync(argsPath, 'utf-8'));
+    // Clean up args file
+    try {
+      fs.unlinkSync(argsPath);
+    } catch {}
+    _runHeadlessWorker(
+      args.sessionId,
+      args.agentBin,
+      args.systemPrompt,
+      args.userMessage
+    ).then(
+      () => process.exit(0),
+      () => process.exit(1)
+    );
+  });
 }
