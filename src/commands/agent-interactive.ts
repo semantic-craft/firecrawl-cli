@@ -409,22 +409,18 @@ export async function runInteractiveAgent(options: {
   }
 
   // ── Gather prompt ───────────────────────────────────────────────────────
-  const promptChoice = await select({
+  let prompt = await input({
     message: 'What data do you want to gather?',
-    choices: [
-      ...SUGGESTIONS.map((s) => ({ name: s.name, value: s.value })),
-      { name: 'Describe your own...', value: '__custom__' },
-    ],
+    default: '',
   });
 
-  let prompt: string;
-  if (promptChoice === '__custom__') {
-    prompt = await input({
-      message: 'Describe the data you want to collect:',
-      validate: (v: string) => (v.trim() ? true : 'Prompt is required'),
+  // If empty, show suggestions to pick from
+  if (!prompt.trim()) {
+    const picked = await select({
+      message: 'Pick an example:',
+      choices: SUGGESTIONS.map((s) => ({ name: s.name, value: s.value })),
     });
-  } else {
-    prompt = promptChoice;
+    prompt = picked;
   }
 
   // ── Seed URLs ───────────────────────────────────────────────────────────
