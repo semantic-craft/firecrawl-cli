@@ -1,26 +1,23 @@
 /**
  * Interactive ACP agent for data gathering.
  *
- * Detects locally-installed ACP providers (Claude Code, Codex, OpenCode),
- * walks the user through an interactive flow to describe the data they need,
- * then launches the selected provider with firecrawl CLI tools to gather,
+ * Detects locally-installed ACP-compatible agents (Claude Code, Codex,
+ * Gemini CLI, etc.), walks the user through an interactive flow to describe
+ * the data they need, then connects to the selected agent via ACP to gather,
  * structure, and deliver datasets as CSV, JSON, or markdown.
  */
 
+import { type ACPAgent, detectAgents } from '../acp/registry';
+import { connectToAgent } from '../acp/client';
 import {
-  type ACPProvider,
   createSession,
-  detectProviders,
   getSessionDir,
-  listSessions,
   loadSession,
   updateSession,
 } from '../utils/acp';
-import { type Backend, BACKENDS, launchAgent } from './experimental/backends';
 import {
   FIRECRAWL_TOOLS_BLOCK,
   SUBAGENT_INSTRUCTIONS,
-  askPermissionMode,
 } from './experimental/shared';
 
 // ─── Suggestions ────────────────────────────────────────────────────────────
@@ -83,7 +80,7 @@ Each record object must have identical keys. Tell the user the file path and rec
 - Tell the user the file path and record count when done.`,
   };
 
-  return `You are a data gathering agent powered by Firecrawl. You orchestrate parallel agents to discover sources, extract structured records, and consolidate them into clean, importable datasets.
+  return `You are a data gathering agent powered by Firecrawl. You discover sources, extract structured records, and consolidate them into clean, importable datasets.
 
 **CRITICAL: You are building a DATASET, not writing a report.** Think spreadsheet rows, not document sections. Every record must have the same fields. The output must be directly importable into a spreadsheet, database, or API.
 
@@ -164,9 +161,6 @@ export async function runInteractiveAgent(options: {
       message: 'What would you like to refine or add?',
     });
 
-    const backend = session.provider as Backend;
-    const skipPermissions = options.yes || (await askPermissionMode(backend));
-
     updateSession(session.id, {
       iterations: session.iterations + 1,
     });
@@ -178,57 +172,74 @@ export async function runInteractiveAgent(options: {
 
     const userMessage = `Continue from previous session. Original request: "${session.prompt}". Schema fields: ${session.schema.join(', ')}. Output already at: ${session.outputPath}. New instruction: ${refinement}`;
 
-    console.log(`\nLaunching ${BACKENDS[backend].displayName}...\n`);
-    launchAgent(backend, systemPrompt, userMessage, skipPermissions);
+    console.log(`\nConnecting to ${session.provider} via ACP...\n`);
+
+    const agent = await connectToAgent({
+      bin: session.provider,
+      systemPrompt,
+      callbacks: {
+        onText: (text) => process.stdout.write(text),
+        onToolCall: (title, status) => {
+          if (status === 'pending') {
+            process.stderr.write(`\n⟡ ${title}...\n`);
+          }
+        },
+      },
+    });
+
+    try {
+      await agent.prompt(userMessage);
+    } finally {
+      agent.close();
+    }
     return;
   }
 
-  // ── Detect providers ────────────────────────────────────────────────────
-  const providers = detectProviders();
-  const available = providers.filter((p) => p.available);
+  // ── Detect agents ───────────────────────────────────────────────────────
+  const agents = detectAgents();
+  const available = agents.filter((a) => a.available);
 
   if (available.length === 0) {
     console.error(
-      '\nNo ACP providers found. Install one of:\n' +
-        '  npm install -g @anthropic-ai/claude-code\n' +
-        '  npm install -g @openai/codex\n' +
-        '  See https://opencode.ai/docs/cli/\n'
+      '\nNo ACP-compatible agents found. Install one of:\n' +
+        '  npm install -g @anthropic-ai/claude-code    (Claude Code)\n' +
+        '  npm install -g @openai/codex                (Codex)\n' +
+        '  npm install -g @anthropic-ai/claude-code    (Gemini CLI)\n' +
+        '  See https://agentclientprotocol.com/get-started/agents\n'
     );
     process.exit(1);
   }
 
-  // ── Select provider ─────────────────────────────────────────────────────
-  let selectedProvider: ACPProvider;
+  // ── Select agent ────────────────────────────────────────────────────────
+  let selectedAgent: ACPAgent;
 
   if (options.provider) {
-    const match = providers.find((p) => p.name === options.provider);
+    const match = agents.find((a) => a.name === options.provider);
     if (!match || !match.available) {
       console.error(
-        `Provider "${options.provider}" is not installed. Available: ${available.map((p) => p.name).join(', ')}`
+        `Agent "${options.provider}" is not installed. Available: ${available.map((a) => a.name).join(', ')}`
       );
       process.exit(1);
     }
-    selectedProvider = match;
+    selectedAgent = match;
   } else if (available.length === 1) {
-    selectedProvider = available[0];
-    console.log(
-      `\nUsing ${selectedProvider.displayName} (only provider detected)\n`
-    );
+    selectedAgent = available[0];
+    console.log(`\nUsing ${selectedAgent.displayName} (only agent detected)\n`);
   } else {
-    const providerChoices = providers.map((p) => ({
-      name: p.available
-        ? `● ${p.displayName} (${p.bin})`
-        : `○ ${p.displayName} (not installed)`,
-      value: p.name,
-      disabled: !p.available ? 'not installed' : false,
+    const agentChoices = agents.map((a) => ({
+      name: a.available
+        ? `● ${a.displayName} (${a.bin})`
+        : `○ ${a.displayName} (not installed)`,
+      value: a.name,
+      disabled: !a.available ? 'not installed' : false,
     }));
 
     const chosen = await select({
-      message: 'Which ACP provider?',
-      choices: providerChoices,
+      message: 'Which ACP agent?',
+      choices: agentChoices,
     });
 
-    selectedProvider = providers.find((p) => p.name === chosen)!;
+    selectedAgent = agents.find((a) => a.name === chosen)!;
   }
 
   // ── Gather prompt ───────────────────────────────────────────────────────
@@ -271,20 +282,16 @@ export async function runInteractiveAgent(options: {
 
   // ── Create session ──────────────────────────────────────────────────────
   const session = createSession({
-    provider: selectedProvider.name,
+    provider: selectedAgent.name,
     prompt,
-    schema: [], // agent will confirm schema interactively
+    schema: [],
     format,
   });
 
   console.log(`\nSession: ${session.id}`);
-  console.log(`Output: ${session.outputPath}\n`);
+  console.log(`Output: ${session.outputPath}`);
 
-  // ── Permission mode ─────────────────────────────────────────────────────
-  const backend = selectedProvider.name as Backend;
-  const skipPermissions = options.yes || (await askPermissionMode(backend));
-
-  // ── Build and launch ────────────────────────────────────────────────────
+  // ── Build message ─────────────────────────────────────────────────────
   const systemPrompt = buildSystemPrompt({
     format,
     sessionDir: getSessionDir(session.id),
@@ -294,6 +301,51 @@ export async function runInteractiveAgent(options: {
   if (urls.trim()) parts.push(`Start from these URLs: ${urls}`);
   const userMessage = parts.join('. ') + '.';
 
-  console.log(`Launching ${selectedProvider.displayName}...\n`);
-  launchAgent(backend, systemPrompt, userMessage, skipPermissions);
+  // ── Connect via ACP ───────────────────────────────────────────────────
+  console.log(`\nConnecting to ${selectedAgent.displayName} via ACP...\n`);
+
+  // Handle Ctrl+C gracefully
+  let agent: Awaited<ReturnType<typeof connectToAgent>> | null = null;
+
+  const handleInterrupt = () => {
+    process.stderr.write('\n\nInterrupted.\n');
+    if (agent) {
+      agent.cancel().catch(() => {});
+      agent.close();
+    }
+    process.exit(0);
+  };
+  process.on('SIGINT', handleInterrupt);
+
+  try {
+    agent = await connectToAgent({
+      bin: selectedAgent.bin,
+      systemPrompt,
+      callbacks: {
+        onText: (text) => process.stdout.write(text),
+        onToolCall: (title, status) => {
+          if (status === 'pending') {
+            process.stderr.write(`\n⟡ ${title}...\n`);
+          }
+        },
+        onToolCallUpdate: (id, status) => {
+          if (status === 'completed') {
+            process.stderr.write(`  ✓ done\n`);
+          }
+        },
+      },
+    });
+
+    const result = await agent.prompt(userMessage);
+    process.stdout.write('\n');
+    process.stderr.write(
+      `\nCompleted (${result.stopReason}). Output: ${session.outputPath}\n`
+    );
+  } catch (error) {
+    console.error('\nError:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  } finally {
+    process.removeListener('SIGINT', handleInterrupt);
+    if (agent) agent.close();
+  }
 }
