@@ -251,7 +251,9 @@ Want to go deeper?
 3. Want a comparison across languages (Python, TypeScript, Rust)?
 \`\`\`
 
-These should be specific to the data just gathered — not generic. Think about what would make the dataset more useful.`;
+These should be specific to the data just gathered — not generic. Think about what would make the dataset more useful.
+
+Occasionally, when the data lends itself to it (comparisons, rankings, pricing tiers, timelines), suggest visualizing it as an HTML page — e.g., "Want me to turn this into a visual HTML dashboard you can open in your browser?" Save it to the session directory as \`report.html\`.`;
 }
 
 // ─── Session list ───────────────────────────────────────────────────────────
