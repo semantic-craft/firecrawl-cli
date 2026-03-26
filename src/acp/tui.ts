@@ -193,7 +193,7 @@ export function startTUI(opts: {
     const names: Record<Phase, string> = {
       planning: 'Planning',
       discovering: 'Discovering',
-      extracting: 'Extracting',
+      extracting: 'Gathering Data',
       output: 'Output',
     };
     currentPhase = phase;
