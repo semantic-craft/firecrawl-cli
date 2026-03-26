@@ -290,13 +290,34 @@ export function startTUI(opts: {
     }
   }
 
+  const WORKING_MESSAGES = [
+    'Gathering data',
+    'Analyzing sources',
+    'Processing results',
+    'Crunching numbers',
+    'Sifting through pages',
+    'Connecting the dots',
+    'Piecing it together',
+  ];
+  let workingMsgIndex = Math.floor(Math.random() * WORKING_MESSAGES.length);
+  let workingMsgTicks = 0;
+
   function showWorking() {
     if (workingShown || !tty) return;
     ensureNewline();
     workingShown = true;
+    workingMsgTicks = 0;
     workingInterval = setInterval(() => {
       spinFrame = (spinFrame + 1) % SPIN.length;
-      process.stderr.write(`\r  ${dim(SPIN[spinFrame])}`);
+      workingMsgTicks++;
+      // Rotate message every ~4 seconds
+      if (workingMsgTicks % 50 === 0) {
+        workingMsgIndex = (workingMsgIndex + 1) % WORKING_MESSAGES.length;
+      }
+      const msg = WORKING_MESSAGES[workingMsgIndex];
+      process.stderr.write(
+        `\r  ${dim(`${SPIN[spinFrame]} ${msg}...`)}${''.padEnd(20)}`
+      );
     }, 80);
   }
 
