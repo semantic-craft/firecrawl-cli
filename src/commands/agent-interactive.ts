@@ -254,6 +254,99 @@ Want to go deeper?
 These should be specific to the data just gathered — not generic. Think about what would make the dataset more useful.`;
 }
 
+// ─── Session list ───────────────────────────────────────────────────────────
+
+export async function listAgentSessions(): Promise<void> {
+  const { select } = await import('@inquirer/prompts');
+  const { listSessions } = await import('../utils/acp');
+  const fs = await import('fs');
+
+  const sessions = listSessions();
+
+  if (sessions.length === 0) {
+    console.log('No sessions found.');
+    return;
+  }
+
+  console.log(
+    `\n${sessions.length} session${sessions.length === 1 ? '' : 's'}:\n`
+  );
+
+  const choices = sessions.map((s) => {
+    const age = timeAgo(new Date(s.updatedAt));
+    const promptShort =
+      s.prompt.length > 60 ? s.prompt.slice(0, 57) + '...' : s.prompt;
+    const hasOutput = fs.existsSync(s.outputPath);
+    const status = hasOutput ? '✓' : '·';
+    return {
+      name: `${status} ${promptShort}  ${dim(`${s.format.toUpperCase()} · ${s.provider} · ${age}`)}`,
+      value: s.id,
+    };
+  });
+
+  choices.push({ name: dim('Done'), value: '__done__' });
+
+  const chosen = await select({
+    message: 'Select a session',
+    choices,
+  });
+
+  if (chosen === '__done__') return;
+
+  const session = sessions.find((s) => s.id === chosen)!;
+  const hasOutput = fs.existsSync(session.outputPath);
+
+  console.log(`\nSession ${session.id}`);
+  console.log(`  Prompt:  ${session.prompt}`);
+  console.log(`  Agent:   ${session.provider}`);
+  console.log(`  Format:  ${session.format.toUpperCase()}`);
+  console.log(`  Created: ${new Date(session.createdAt).toLocaleString()}`);
+  console.log(
+    `  Output:  ${hasOutput ? session.outputPath : '(not yet written)'}`
+  );
+
+  const actions = [
+    { name: 'Resume this session', value: 'resume' },
+    ...(hasOutput
+      ? [{ name: `Open ${session.outputPath.split('/').pop()}`, value: 'open' }]
+      : []),
+    { name: 'Open session folder', value: 'folder' },
+    { name: 'Back', value: 'back' },
+  ];
+
+  const action = await select({ message: 'Action', choices: actions });
+
+  if (action === 'resume') {
+    await runInteractiveAgent({ session: session.id });
+  } else if (action === 'open') {
+    const { execSync } = await import('child_process');
+    try {
+      execSync(`open "${session.outputPath}"`);
+    } catch {
+      console.log(session.outputPath);
+    }
+  } else if (action === 'folder') {
+    const { execSync } = await import('child_process');
+    const { getSessionDir } = await import('../utils/acp');
+    try {
+      execSync(`open "${getSessionDir(session.id)}"`);
+    } catch {
+      console.log(getSessionDir(session.id));
+    }
+  }
+}
+
+function timeAgo(date: Date): string {
+  const secs = Math.round((Date.now() - date.getTime()) / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 // ─── Session end ────────────────────────────────────────────────────────────
 
 async function showSessionEnd(

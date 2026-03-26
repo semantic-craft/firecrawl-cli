@@ -659,6 +659,7 @@ function createAgentCommand(): Command {
       'ACP provider to use (claude, codex, opencode)'
     )
     .option('--session <id>', 'Resume an existing interactive session')
+    .option('-l, --list', 'List past agent sessions', false)
     .option(
       '--format <format>',
       'Output format for interactive mode (csv, json, report)'
@@ -712,6 +713,14 @@ function createAgentCommand(): Command {
       false
     )
     .action(async (promptOrJobId, options) => {
+      // List past sessions
+      if (options.list) {
+        const { listAgentSessions } =
+          await import('./commands/agent-interactive');
+        await listAgentSessions();
+        return;
+      }
+
       // Interactive mode: no prompt, or -i flag, or --session
       const isInteractive =
         !promptOrJobId || options.interactive || options.session;
