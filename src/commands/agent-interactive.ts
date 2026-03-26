@@ -626,8 +626,9 @@ export async function runHeadlessAgent(opts: {
   console.log(
     `Running with ${selectedAgent.displayName} (session ${session.id})`
   );
-  console.log(`Output will be written to: ${session.outputPath}`);
-  console.log(`Poll for progress: cat ${sessionDir}/session.json`);
+  console.log(`Output: ${session.outputPath}`);
+  console.log(`Log:    ${sessionDir}/agent.log`);
+  console.log(`\nTail the log: tail -f ${sessionDir}/agent.log`);
 }
 
 // ─── Background worker (called by forked process) ──────────────────────────
@@ -638,22 +639,56 @@ async function _runHeadlessWorker(
   systemPrompt: string,
   userMessage: string
 ): Promise<void> {
+  const fs = await import('fs');
+  const sessionDir = getSessionDir(sessionId);
+  const logPath = `${sessionDir}/agent.log`;
+
+  // Append a line to the agent log
+  function log(line: string) {
+    fs.appendFileSync(logPath, line + '\n');
+  }
+
+  log(`[${new Date().toISOString()}] Session started`);
+  log(`[agent] ${agentBin}`);
+  log(`[prompt] ${userMessage}`);
+  log('');
+
   try {
     const agent = await connectToAgent({
       bin: agentBin,
       systemPrompt,
       callbacks: {
-        onText: () => {},
-        onToolCall: () => {},
-        onToolCallUpdate: () => {},
+        onText: (text) => {
+          // Write agent text to log (strip trailing whitespace per line)
+          fs.appendFileSync(logPath, text);
+        },
+        onToolCall: (call) => {
+          const input = call.rawInput as Record<string, unknown> | undefined;
+          const cmd = input?.command as string | undefined;
+          if (cmd) {
+            log(`\n[tool] ${call.title}: ${cmd.slice(0, 200)}`);
+          } else {
+            log(`\n[tool] ${call.title}`);
+          }
+        },
+        onToolCallUpdate: (call) => {
+          if (call.status === 'completed') {
+            log(`[done] ${call.title || call.id}`);
+          } else if (call.status === 'errored') {
+            log(`[fail] ${call.title || call.id}`);
+          }
+        },
       },
     });
 
     await agent.prompt(userMessage);
     agent.close();
     updateSession(sessionId, { iterations: 1 });
-  } catch {
-    // Session stays as-is — caller can check session.json for staleness
+    log(`\n[${new Date().toISOString()}] Completed`);
+  } catch (error) {
+    log(
+      `\n[${new Date().toISOString()}] Failed: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
