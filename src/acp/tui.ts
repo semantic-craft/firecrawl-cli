@@ -200,26 +200,50 @@ export function startTUI(opts: {
     process.stderr.write(`\n${sectionHeader(names[phase])}\n\n`);
   }
 
+  // Track if we're showing a working indicator
+  let workingShown = false;
+
+  function showWorking() {
+    if (workingShown || !tty) return;
+    workingShown = true;
+    process.stderr.write(`  ${dim('...')}\r`);
+  }
+
+  function clearWorking() {
+    if (!workingShown) return;
+    workingShown = false;
+    process.stderr.write(`\r\x1b[2K`); // clear the line
+  }
+
   return {
     onText(text: string) {
+      clearWorking();
       process.stdout.write(text);
     },
 
     onToolCall(call: ToolCallInfo) {
       const info = categorize(call, opts.sessionDir);
-      if (!info) return;
+      if (!info) {
+        // Background work — show subtle indicator
+        showWorking();
+        return;
+      }
       calls.set(call.id, info);
     },
 
     onToolCallUpdate(call: ToolCallInfo) {
       const info = calls.get(call.id);
-      if (!info) return;
+      if (!info) {
+        // Background work completed — keep working indicator if others pending
+        return;
+      }
 
       if (call.status === 'completed' || call.status === 'errored') {
         calls.delete(call.id);
         if (completed.has(info.dedupeKey)) return;
         completed.add(info.dedupeKey);
 
+        clearWorking();
         ensurePhase(info.phase);
         const icon = call.status === 'completed' ? green('✓') : red('✗');
         process.stderr.write(`  ${icon} ${info.label}\n`);
