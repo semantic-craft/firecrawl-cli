@@ -189,22 +189,9 @@ export function startTUI(opts: {
 
     onToolCall(call: ToolCallInfo) {
       const desc = categorizeCall(call, opts.sessionDir);
-      if (!desc) {
-        // Background work — show a single "Working..." if we haven't yet
-        if (!backgroundShown && lastOutputWasText) {
-          // Don't print anything for background — the agent text provides context
-        }
-        return;
-      }
-
+      if (!desc) return;
+      // Just register — we print only on completion
       calls.set(call.id, desc);
-
-      // Deduplicate: don't print if we already showed this exact operation
-      if (printed.has(desc.dedupeKey)) return;
-      printed.add(desc.dedupeKey);
-
-      ensureNewSection();
-      process.stderr.write(`  ${dim('·')} ${desc.label}\n`);
     },
 
     onToolCallUpdate(call: ToolCallInfo) {
@@ -214,7 +201,7 @@ export function startTUI(opts: {
       if (call.status === 'completed' || call.status === 'errored') {
         calls.delete(call.id);
 
-        // Only print completion if we haven't already for this dedupe key
+        // Deduplicate: only print once per unique operation
         if (completed.has(desc.dedupeKey)) return;
         completed.add(desc.dedupeKey);
 
