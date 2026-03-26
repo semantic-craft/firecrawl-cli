@@ -142,6 +142,7 @@ export interface TUIHandle {
     used: number;
     cost?: { amount: number; currency: string } | null;
   }) => void;
+  addCredits: (n: number) => void;
 
   section: (name: string) => void;
   printStatus: () => void;
@@ -164,7 +165,7 @@ export function startTUI(opts: {
   // Metrics
   let tokensUsed = 0;
   let tokensTotal = 0;
-  let cost: { amount: number; currency: string } | null = null;
+  let firecrawlCredits = 0;
   const startedAt = Date.now();
 
   function elapsed(): string {
@@ -174,21 +175,17 @@ export function startTUI(opts: {
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   }
 
-  function statusParts(): string[] {
+  function statusLine(): string {
     const parts: string[] = [];
-    if (cost) {
-      parts.push(`$${cost.amount.toFixed(2)}`);
-    }
     if (tokensUsed > 0) {
       const k = Math.round(tokensUsed / 1000);
       parts.push(`${k}k tokens`);
     }
+    if (firecrawlCredits > 0) {
+      parts.push(`${firecrawlCredits} credits`);
+    }
     parts.push(elapsed());
-    return parts;
-  }
-
-  function statusLine(): string {
-    return dim(statusParts().join(' · '));
+    return dim(parts.join(' · '));
   }
 
   function ensurePhase(phase: Phase) {
@@ -232,9 +229,10 @@ export function startTUI(opts: {
     onUsage(update) {
       tokensUsed = update.used;
       tokensTotal = update.size;
-      if (update.cost) {
-        cost = { amount: update.cost.amount, currency: update.cost.currency };
-      }
+    },
+
+    addCredits(n: number) {
+      firecrawlCredits += n;
     },
 
     section(name: string) {
@@ -252,7 +250,8 @@ export function startTUI(opts: {
     },
 
     pause() {
-      process.stderr.write(`\n${statusLine()}\n`);
+      // Just add spacing before user prompt — no status line mid-conversation
+      process.stderr.write('\n');
     },
 
     resume() {
