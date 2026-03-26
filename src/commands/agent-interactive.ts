@@ -96,9 +96,19 @@ You are running inside a CLI. The user sees your text output streamed in real-ti
 
 Your working directory for this session is: \`${opts.sessionDir}\`
 
-All output files go here. You can also read/write intermediate files here (e.g., partial results, scripts). The user's output file is: \`${opts.sessionDir}/output.${opts.format === 'csv' ? 'csv' : opts.format === 'json' ? 'json' : 'md'}\`
+Your output file: \`${opts.sessionDir}/output.${opts.format === 'csv' ? 'csv' : opts.format === 'json' ? 'json' : 'md'}\`
 
-If you need to build the dataset incrementally, write partial results to the session directory as you go. This way if the session is interrupted, progress is preserved.
+**Save all scraped pages** to the session directory using the firecrawl convention:
+\`\`\`
+${opts.sessionDir}/sites/<hostname>/<path>/index.md
+\`\`\`
+
+For example, when scraping \`https://vercel.com/pricing\`:
+\`\`\`
+firecrawl scrape "https://vercel.com/pricing" -o "${opts.sessionDir}/sites/vercel.com/pricing/index.md"
+\`\`\`
+
+This way the user gets both the structured output file AND the raw source pages organized by site. Always use the \`-o\` flag to save scrapes to this structure.
 
 ## Tools
 
