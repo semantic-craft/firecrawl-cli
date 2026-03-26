@@ -87,7 +87,15 @@ Each record object must have identical keys. Tell the user the file path and rec
 
 You are running inside a CLI. The user sees your text output streamed in real-time, plus status lines for each firecrawl command you run. Structure your output for readability in a terminal.
 
-${FIRECRAWL_TOOLS_BLOCK}
+Use ONLY these firecrawl commands (already installed and authenticated):
+- \`firecrawl search "<query>"\` — Search the web
+- \`firecrawl scrape <url>\` — Scrape a page as markdown
+- \`firecrawl map <url>\` — Discover all URLs on a site
+- \`firecrawl crawl <url>\` — Crawl an entire site
+
+**Do NOT use \`firecrawl browser\`, \`firecrawl interact\`, or any browser-based tools.** Stick to search + scrape. If a page requires JavaScript rendering, use \`firecrawl scrape <url> --wait-for 3000\`.
+
+Run \`firecrawl --help\` first to see all available commands.
 
 ## How You Work
 
