@@ -139,6 +139,22 @@ Start by analyzing the request and proposing a schema.`;
  * Parse a tool call and return a user-facing label, or null to hide it.
  * Only firecrawl operations and session output writes are shown.
  */
+/** Extract a URL from a firecrawl command, ignoring flags, pipes, and redirects. */
+function extractUrl(cmd: string, prefix: string): string | null {
+  // Try quoted URL first
+  const quoted = cmd.match(
+    new RegExp(`${prefix}\\s+["'](https?://[^"']+)["']`)
+  );
+  if (quoted) return quoted[1];
+  // Try unquoted URL
+  const parts = cmd.replace(new RegExp(`^${prefix}\\s*`), '').split(/\s+/);
+  for (const part of parts) {
+    const clean = part.replace(/^["']|["']$/g, '');
+    if (clean.startsWith('http')) return clean;
+  }
+  return null;
+}
+
 function describeToolCall(
   call: ToolCallInfo,
   sessionDir: string
@@ -149,34 +165,28 @@ function describeToolCall(
     const cmd = input.command.trim();
 
     if (cmd.startsWith('firecrawl search')) {
-      const query = cmd
+      // Extract just the quoted query, stripping flags and pipes
+      const match = cmd.match(/firecrawl search\s+["']([^"']+)["']/);
+      if (match) return `Searching "${match[1]}"`;
+      const arg = cmd
         .replace(/^firecrawl search\s*/, '')
-        .replace(/^["']|["']$/g, '')
-        .split(/\s+--/)[0];
-      return `Searching "${query}"`;
+        .split(/\s+/)[0]
+        .replace(/^["']|["']$/g, '');
+      return `Searching "${arg}"`;
     }
     if (cmd.startsWith('firecrawl scrape')) {
-      const url = cmd
-        .replace(/^firecrawl scrape\s*/, '')
-        .split(/\s/)[0]
-        .replace(/^["']|["']$/g, '');
-      if (url.startsWith('http')) return `Scraping ${url}`;
-      return null; // --help or flags only
+      const url = extractUrl(cmd, 'firecrawl scrape');
+      if (url) return `Scraping ${url}`;
+      return null;
     }
     if (cmd.startsWith('firecrawl map')) {
-      const url = cmd
-        .replace(/^firecrawl map\s*/, '')
-        .split(/\s/)[0]
-        .replace(/^["']|["']$/g, '');
-      if (url.startsWith('http')) return `Mapping ${url}`;
+      const url = extractUrl(cmd, 'firecrawl map');
+      if (url) return `Mapping ${url}`;
       return null;
     }
     if (cmd.startsWith('firecrawl crawl')) {
-      const url = cmd
-        .replace(/^firecrawl crawl\s*/, '')
-        .split(/\s/)[0]
-        .replace(/^["']|["']$/g, '');
-      if (url.startsWith('http')) return `Crawling ${url}`;
+      const url = extractUrl(cmd, 'firecrawl crawl');
+      if (url) return `Crawling ${url}`;
       return null;
     }
     if (cmd.startsWith('firecrawl agent')) {
@@ -202,60 +212,7 @@ function describeToolCall(
   return null;
 }
 
-// ─── Multi-line spinner for parallel operations ─────────────────────────────
-
-const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-
-interface ToolCallState {
-  activeToolCalls: Map<string, string>;
-  spinnerFrame: number;
-  spinnerInterval: ReturnType<typeof setInterval> | null;
-  renderedLineCount: number;
-}
-
-function createToolCallState(): ToolCallState {
-  return {
-    activeToolCalls: new Map(),
-    spinnerFrame: 0,
-    spinnerInterval: null,
-    renderedLineCount: 0,
-  };
-}
-
-function clearRenderedLines(state: ToolCallState): void {
-  for (let i = 0; i < state.renderedLineCount; i++) {
-    process.stderr.write('\x1b[A\x1b[2K'); // move up + clear line
-  }
-  state.renderedLineCount = 0;
-}
-
-function renderSpinnerFrame(state: ToolCallState): void {
-  if (state.activeToolCalls.size === 0) return;
-  state.spinnerFrame = (state.spinnerFrame + 1) % SPINNER.length;
-
-  // Clear previously rendered lines
-  clearRenderedLines(state);
-
-  // Render each active call on its own line
-  const lines = [...state.activeToolCalls.values()];
-  for (const label of lines) {
-    process.stderr.write(`  ${SPINNER[state.spinnerFrame]} ${label}\n`);
-  }
-  state.renderedLineCount = lines.length;
-}
-
-function startSpinner(state: ToolCallState): void {
-  if (state.spinnerInterval) return;
-  state.spinnerInterval = setInterval(() => renderSpinnerFrame(state), 80);
-}
-
-function stopSpinner(state: ToolCallState): void {
-  if (state.spinnerInterval) {
-    clearInterval(state.spinnerInterval);
-    state.spinnerInterval = null;
-  }
-  clearRenderedLines(state);
-}
+// ─── Tool call display ──────────────────────────────────────────────────────
 
 function buildCallbacks(sessionDir: string): {
   onText: (text: string) => void;
@@ -263,42 +220,28 @@ function buildCallbacks(sessionDir: string): {
   onToolCallUpdate: (call: ToolCallInfo) => void;
   cleanup: () => void;
 } {
-  const state = createToolCallState();
+  const pending = new Map<string, string>();
 
   return {
     onText: (text: string) => {
-      // Clear spinner, print text, re-render spinner
-      if (state.activeToolCalls.size > 0) {
-        clearRenderedLines(state);
-        process.stdout.write(text);
-        renderSpinnerFrame(state);
-      } else {
-        process.stdout.write(text);
-      }
+      process.stdout.write(text);
     },
     onToolCall: (call: ToolCallInfo) => {
       const label = describeToolCall(call, sessionDir);
       if (!label) return;
-      state.activeToolCalls.set(call.id, label);
-      startSpinner(state);
+      pending.set(call.id, label);
+      process.stderr.write(`  · ${label}\n`);
     },
     onToolCallUpdate: (call: ToolCallInfo) => {
-      if (!state.activeToolCalls.has(call.id)) return;
-      const label = state.activeToolCalls.get(call.id)!;
+      if (!pending.has(call.id)) return;
+      const label = pending.get(call.id)!;
       if (call.status === 'completed' || call.status === 'errored') {
-        state.activeToolCalls.delete(call.id);
-
-        // Clear all spinner lines, print completed line, re-render remaining
-        clearRenderedLines(state);
+        pending.delete(call.id);
         const icon = call.status === 'completed' ? '✓' : '✗';
         process.stderr.write(`  ${icon} ${label}\n`);
-
-        if (state.activeToolCalls.size === 0) {
-          stopSpinner(state);
-        }
       }
     },
-    cleanup: () => stopSpinner(state),
+    cleanup: () => {},
   };
 }
 
@@ -387,13 +330,32 @@ export async function runInteractiveAgent(options: {
     selectedAgent = available[0];
     console.log(`\nUsing ${selectedAgent.displayName} (only agent detected)\n`);
   } else {
-    const agentChoices = agents.map((a) => ({
-      name: a.available
-        ? `● ${a.displayName} (${a.bin})`
-        : `○ ${a.displayName} (not installed)`,
-      value: a.name,
-      disabled: !a.available ? 'not installed' : false,
-    }));
+    // Available agents first, then unavailable grouped at the bottom
+    const installedChoices = agents
+      .filter((a) => a.available)
+      .map((a) => ({
+        name: `${a.displayName}`,
+        value: a.name,
+        disabled: false as const,
+      }));
+    const notInstalled = agents.filter((a) => !a.available);
+    const agentChoices = [
+      ...installedChoices,
+      ...(notInstalled.length > 0
+        ? [
+            {
+              name: '─── Not installed ───',
+              value: '_sep',
+              disabled: 'separator' as const,
+            },
+            ...notInstalled.map((a) => ({
+              name: `${a.displayName}`,
+              value: a.name,
+              disabled: 'not installed' as const,
+            })),
+          ]
+        : []),
+    ];
 
     const chosen = await select({
       message: 'Which ACP agent?',
