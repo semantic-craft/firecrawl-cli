@@ -603,23 +603,19 @@ export async function runHeadlessAgent(opts: {
   const systemPrompt = buildSystemPrompt({ format, sessionDir });
   const userMessage = `Gather data: ${opts.prompt}.`;
 
-  // Print session info for the caller
   console.log(
-    JSON.stringify({
-      sessionId: session.id,
-      sessionDir,
-      output: session.outputPath,
-      agent: selectedAgent.displayName,
-      status: 'running',
-    })
+    `Running with ${selectedAgent.displayName} (session ${session.id})`
   );
+  console.log(`Output will be written to: ${session.outputPath}`);
+  console.log(`Session log: ${sessionDir}/session.json`);
+  console.log('');
 
   try {
     const agent = await connectToAgent({
       bin: selectedAgent.bin,
       systemPrompt,
       callbacks: {
-        onText: () => {}, // silent
+        onText: () => {},
         onToolCall: () => {},
         onToolCallUpdate: () => {},
       },
@@ -628,25 +624,11 @@ export async function runHeadlessAgent(opts: {
     await agent.prompt(userMessage);
     agent.close();
 
-    // Update session and print final status
     updateSession(session.id, { iterations: 1 });
-    console.log(
-      JSON.stringify({
-        sessionId: session.id,
-        sessionDir,
-        output: session.outputPath,
-        agent: selectedAgent.displayName,
-        status: 'completed',
-      })
-    );
+    console.log(`Done. ${session.outputPath}`);
   } catch (error) {
     console.error(
-      JSON.stringify({
-        sessionId: session.id,
-        sessionDir,
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      })
+      `Failed: ${error instanceof Error ? error.message : String(error)}`
     );
     process.exit(1);
   }
