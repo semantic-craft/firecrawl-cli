@@ -1,15 +1,13 @@
 ---
-name: firecrawl-browser
+name: firecrawl-instruct
 description: |
-  DEPRECATED — use scrape + interact instead. Interact lets you scrape a page and then click, fill forms, and navigate without managing sessions manually. Use this skill when the user needs to interact with a webpage, log into a site, click buttons, fill forms, navigate multi-step flows, handle pagination, or when regular scraping fails because content requires JavaScript interaction. Triggers on "click", "fill out the form", "log in to", "paginated", "infinite scroll", "interact with the page", or "scrape failed".
+  Interact with scraped pages in a live browser session — click, fill forms, navigate, and extract data using natural language or code. Use this skill when the user needs to interact with a webpage, log into a site, click buttons, fill forms, navigate multi-step flows, handle pagination, or when regular scraping fails because content requires JavaScript interaction. Triggers on "click", "fill out the form", "log in to", "paginated", "infinite scroll", "interact with the page", or "scrape failed".
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
 ---
 
-# firecrawl interact (formerly browser)
-
-> **The `browser` command is deprecated.** Use `scrape` + `interact` instead. Interact lets you scrape a page and then click, fill forms, and navigate without managing sessions manually.
+# firecrawl instruct
 
 Interact with scraped pages in a live browser session. Scrape a page first, then use natural language prompts or code to click, fill forms, navigate, and extract data.
 
@@ -18,8 +16,8 @@ Interact with scraped pages in a live browser session. Scrape a page first, then
 - Content requires interaction: clicks, form fills, pagination, login
 - `scrape` failed because content is behind JavaScript interaction
 - You need to navigate a multi-step flow
-- Last resort in the [workflow escalation pattern](firecrawl-cli): search → scrape → map → crawl → **interact**
-- **Never use interact for web searches** — use `search` instead
+- Last resort in the [workflow escalation pattern](firecrawl-cli): search → scrape → map → crawl → **instruct**
+- **Never use instruct for web searches** — use `search` instead
 
 ## Quick start
 
@@ -80,6 +78,6 @@ firecrawl scrape "https://app.example.com" --profile my-app --no-save-changes
 
 ## See also
 
-- [firecrawl-scrape](../firecrawl-scrape/SKILL.md) — try scrape first, escalate to interact only when needed
-- [firecrawl-search](../firecrawl-search/SKILL.md) — for web searches (never use interact for searching)
+- [firecrawl-scrape](../firecrawl-scrape/SKILL.md) — try scrape first, escalate to instruct only when needed
+- [firecrawl-search](../firecrawl-search/SKILL.md) — for web searches (never use instruct for searching)
 - [firecrawl-agent](../firecrawl-agent/SKILL.md) — AI-powered extraction (less manual control)
