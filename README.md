@@ -28,6 +28,16 @@ firecrawl setup skills
 
 This installs skills globally across all detected coding editors by default. Use `--agent <agent>` to scope it to one editor.
 
+### Agent skills
+
+This CLI ships with an agent skill that teaches AI coding agents (Cursor, Claude Code, Windsurf, etc.) how to use the Firecrawl CLI effectively, including non-interactive flags, output formats, and common pitfalls.
+
+To install skills for Firecrawl's full platform (API, CLI, SDKs, and best practices) from the central skills repository:
+
+```bash
+npx skills add firecrawl/skills
+```
+
 To install the Firecrawl MCP server into your editors (Cursor, Claude Code, VS Code, etc.):
 
 ```bash
