@@ -226,11 +226,7 @@ Quick reference:
 - \`firecrawl scrape <url> --format html\` -- Scrape as HTML
 - \`firecrawl map <url>\` -- Discover all URLs on a site
 - \`firecrawl crawl <url>\` -- Crawl an entire site
-- \`firecrawl download <url>\` -- Download a site into .firecrawl/
-- \`firecrawl browser "open <url>"\` -- Cloud browser session
-- \`firecrawl browser "snapshot"\` -- Get page state
-- \`firecrawl browser "click @<ref>"\` -- Click an element
-- \`firecrawl browser "type @<ref> <text>"\` -- Type into an input
+- \`firecrawl interact "Click the login button"\` -- Interact with a scraped page
 - \`firecrawl agent "<prompt>"\` -- AI agent for complex extraction
 
 ## Guidelines
