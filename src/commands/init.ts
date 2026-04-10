@@ -98,6 +98,111 @@ export const TEMPLATES: TemplateEntry[] = [
   },
 ];
 
+/**
+ * Install one skill repo with quiet output — pipes the noisy `npx skills add`
+ * stdout/stderr instead of inheriting it, so users see a single clean line per
+ * repo instead of the full banner / installation table / security report.
+ *
+ * On failure, prints captured stderr so the user can debug.
+ */
+async function installSkillRepoQuiet(
+  repo: string,
+  options: InitOptions
+): Promise<void> {
+  if (hasNpx()) {
+    const args = buildSkillsInstallArgs({
+      repo,
+      agent: options.agent,
+      yes: options.yes || options.all || true,
+      global: true,
+      includeNpxYes: true,
+    });
+
+    // In a TTY, show a transient "↓ <repo>" line that gets overwritten by
+    // "✓ <repo>" once the install completes. In a non-TTY (CI logs, piped),
+    // just print the final line — `\r` overwrites don't render correctly.
+    const isTty = process.stdout.isTTY;
+    if (isTty) {
+      process.stdout.write(`  ${dim}↓ ${repo}${reset}`);
+    }
+    try {
+      execSync(args.join(' '), {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: cleanNpmEnv(),
+      });
+      if (isTty) {
+        process.stdout.write(`\r  ${green}✓${reset} ${repo}            \n`);
+      } else {
+        console.log(`  ${green}✓${reset} ${repo}`);
+      }
+    } catch (err) {
+      if (isTty) {
+        process.stdout.write(`\r  ${dim}✗${reset} ${repo}            \n`);
+      } else {
+        console.log(`  ${dim}✗${reset} ${repo}`);
+      }
+      const stderr =
+        err && typeof err === 'object' && 'stderr' in err
+          ? String((err as { stderr: Buffer | string }).stderr || '')
+          : '';
+      if (stderr.trim()) {
+        console.error(
+          stderr
+            .trim()
+            .split('\n')
+            .map((l) => `    ${dim}${l}${reset}`)
+            .join('\n')
+        );
+      }
+      throw err;
+    }
+    return;
+  }
+
+  // No npx available — use native fallback. It prints its own dimmed status.
+  await installSkillsNative(repo);
+}
+
+/**
+ * Print the post-install next-steps block. Shown at the end of both the
+ * interactive and non-interactive init flows.
+ */
+function printNextSteps(): void {
+  const arrow = `${dim}→${reset}`;
+  const heading = (text: string) => `${bold}${text}${reset}`;
+
+  console.log('');
+  console.log(`${green}${bold}  ✓ Firecrawl is ready${reset}`);
+  console.log('');
+  console.log(`  Skills are installed globally across your AI coding agents.`);
+  console.log(
+    `  Use Firecrawl to ${bold}search${reset}, ${bold}scrape${reset}, ${bold}crawl${reset}, and ${bold}interact${reset} with the web.`
+  );
+  console.log('');
+  console.log(`  ${heading('Next steps')}`);
+  console.log('');
+  console.log(`  ${dim}Ask your AI coding agent:${reset}`);
+  console.log(
+    `    ${arrow} "Use firecrawl to scrape pricing from competitor sites and save to JSON"`
+  );
+  console.log(
+    `    ${arrow} "Build a Next.js dashboard that uses firecrawl to search tech news"`
+  );
+  console.log('');
+  console.log(`  ${dim}Or run firecrawl directly:${reset}`);
+  console.log(
+    `    ${arrow} ${bold}firecrawl scrape${reset} https://news.ycombinator.com`
+  );
+  console.log(
+    `    ${arrow} ${bold}firecrawl search${reset} "best AI coding tools 2026" --limit 5`
+  );
+  console.log('');
+  console.log(
+    `  ${dim}Run${reset} ${bold}firecrawl --help${reset} ${dim}for the full command reference.${reset}`
+  );
+  console.log('');
+}
+
 async function stepInstall(): Promise<boolean> {
   const { confirm } = await import('@inquirer/prompts');
   const shouldInstall = await confirm({
@@ -219,35 +324,14 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
   for (const integration of integrations) {
     switch (integration) {
       case 'skills': {
-        console.log(`\n  Setting up skills...`);
+        console.log(`\n  Installing skills...`);
         for (const repo of SKILL_REPOS) {
-          if (hasNpx()) {
-            const args = buildSkillsInstallArgs({
-              repo,
-              agent: options.agent,
-              yes: options.yes || options.all,
-              global: true,
-              includeNpxYes: true,
-            });
-            try {
-              execSync(args.join(' '), {
-                stdio: 'inherit',
-                env: cleanNpmEnv(),
-              });
-              console.log(`  ${green}✓${reset} Skills installed from ${repo}`);
-            } catch {
-              console.error(
-                `  Failed to install skills from ${repo}. Run "firecrawl setup skills" later.`
-              );
-            }
-          } else {
-            try {
-              await installSkillsNative(repo);
-            } catch {
-              console.error(
-                `  Failed to install skills from ${repo}. Run "firecrawl setup skills" later.`
-              );
-            }
+          try {
+            await installSkillRepoQuiet(repo, options);
+          } catch {
+            console.error(
+              `  ${dim}Run "firecrawl setup skills" later to retry.${reset}`
+            );
           }
         }
         break;
@@ -562,9 +646,7 @@ export async function handleInitCommand(
   // Step 4: Template
   await stepTemplate();
 
-  console.log(
-    `${green}${bold}  Setup complete!${reset} Run ${dim}firecrawl --help${reset} to get started.\n`
-  );
+  printNextSteps();
 }
 
 async function runNonInteractive(options: InitOptions): Promise<void> {
@@ -638,41 +720,16 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
       `${stepLabel()} Installing firecrawl skills for AI coding agents...`
     );
     for (const repo of SKILL_REPOS) {
-      if (hasNpx()) {
-        const args = buildSkillsInstallArgs({
-          repo,
-          agent: options.agent,
-          yes: true,
-          global: true,
-          includeNpxYes: true,
-        });
-        try {
-          execSync(args.join(' '), {
-            stdio: 'inherit',
-            env: cleanNpmEnv(),
-          });
-          console.log(`${green}✓${reset} Skills installed from ${repo}`);
-        } catch {
-          console.error(
-            `\nFailed to install skills from ${repo}. You can retry with: firecrawl setup skills`
-          );
-          process.exit(1);
-        }
-      } else {
-        try {
-          await installSkillsNative(repo);
-        } catch {
-          console.error(
-            `\nFailed to install skills from ${repo}. You can retry with: firecrawl setup skills`
-          );
-          process.exit(1);
-        }
+      try {
+        await installSkillRepoQuiet(repo, options);
+      } catch {
+        console.error(
+          `\n${dim}Failed to install skills from ${repo}. Retry with: firecrawl setup skills${reset}`
+        );
+        process.exit(1);
       }
     }
-    console.log('');
   }
 
-  console.log(
-    `${green}${bold}Setup complete!${reset} Run ${dim}firecrawl --help${reset} to get started.\n`
-  );
+  printNextSteps();
 }

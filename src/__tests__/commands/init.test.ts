@@ -26,11 +26,11 @@ describe('handleInitCommand', () => {
 
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/cli --full-depth --global --all --yes',
-      expect.objectContaining({ stdio: 'inherit' })
+      expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
     );
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/skills --full-depth --global --all --yes',
-      expect.objectContaining({ stdio: 'inherit' })
+      expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
     );
   });
 
@@ -44,11 +44,11 @@ describe('handleInitCommand', () => {
 
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/cli --full-depth --global --yes --agent cursor',
-      expect.objectContaining({ stdio: 'inherit' })
+      expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
     );
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/skills --full-depth --global --yes --agent cursor',
-      expect.objectContaining({ stdio: 'inherit' })
+      expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
     );
   });
 });
