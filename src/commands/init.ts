@@ -199,6 +199,10 @@ function printNextSteps(skillCount: number | null): void {
     `  ${arrow} ${dim}All commands:${reset} ${bold}firecrawl --help${reset}`
   );
   console.log('');
+  console.log(
+    `  ${dim}In your AI agent, just ask to ${reset}${bold}"start building"${reset}${dim} — the build skills auto-load.${reset}`
+  );
+  console.log('');
 }
 
 async function stepInstall(): Promise<boolean> {
