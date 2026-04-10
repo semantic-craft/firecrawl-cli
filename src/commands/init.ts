@@ -98,18 +98,31 @@ export const TEMPLATES: TemplateEntry[] = [
   },
 ];
 
+/** Human-friendly labels for skill repos, shown during install. */
+const SKILL_REPO_LABELS: Record<string, string> = {
+  'firecrawl/cli': 'core firecrawl skills',
+  'firecrawl/skills': 'skills to build with firecrawl',
+};
+
+function skillRepoLabel(repo: string): string {
+  return SKILL_REPO_LABELS[repo] ?? repo;
+}
+
 /**
  * Install one skill repo quietly. Captures `npx skills add` output instead of
  * inheriting it, so users see a single line per repo. Returns the number of
  * skills installed (parsed from the captured stdout), or null if unknown.
  *
- * In a TTY, shows a transient "↓ <repo>" line that gets overwritten by
- * "✓ <repo> (N skills)" on success. In a non-TTY, prints only the final line.
+ * In a TTY, shows a transient "↓ Installing <label>..." line that gets
+ * overwritten by "✓ <label> (N)" on success. In a non-TTY, prints only
+ * the final line.
  */
 async function installSkillRepoQuiet(
   repo: string,
   options: InitOptions
 ): Promise<number | null> {
+  const label = skillRepoLabel(repo);
+
   if (hasNpx()) {
     const args = buildSkillsInstallArgs({
       repo,
@@ -121,7 +134,7 @@ async function installSkillRepoQuiet(
 
     const isTty = process.stdout.isTTY;
     if (isTty) {
-      process.stdout.write(`  ${dim}↓ ${repo}${reset}`);
+      process.stdout.write(`  ${dim}↓ Installing ${label}...${reset}`);
     }
     try {
       const stdout = execSync(args.join(' '), {
@@ -129,20 +142,21 @@ async function installSkillRepoQuiet(
         env: cleanNpmEnv(),
       });
       const count = parseSkillCount(stdout?.toString() ?? '');
-      const suffix = count != null ? ` ${dim}(${count} skills)${reset}` : '';
+      const suffix = count != null ? ` ${dim}(${count})${reset}` : '';
+      const padding = ' '.repeat(20); // clears any leftover "Installing..." text
       if (isTty) {
         process.stdout.write(
-          `\r  ${green}✓${reset} ${repo}${suffix}            \n`
+          `\r  ${green}✓${reset} ${label}${suffix}${padding}\n`
         );
       } else {
-        console.log(`  ${green}✓${reset} ${repo}${suffix}`);
+        console.log(`  ${green}✓${reset} ${label}${suffix}`);
       }
       return count;
     } catch (err) {
       if (isTty) {
-        process.stdout.write(`\r  ${dim}✗${reset} ${repo}            \n`);
+        process.stdout.write(`\r  ${dim}✗ ${label}${' '.repeat(20)}${reset}\n`);
       } else {
-        console.log(`  ${dim}✗${reset} ${repo}`);
+        console.log(`  ${dim}✗${reset} ${label}`);
       }
       const stderr =
         err && typeof err === 'object' && 'stderr' in err
@@ -187,20 +201,27 @@ function printNextSteps(skillCount: number | null): void {
   console.log(`  ${summary}`);
   console.log('');
   console.log(
-    `  ${arrow} ${dim}Ask your AI:${reset} "Use firecrawl to scrape pricing into JSON"`
+    `  ${dim}Connect & interact with the web ${reset}${dim}(direct or in your AI agent):${reset}`
   );
   console.log(
-    `  ${arrow} ${dim}Run direct: ${reset} ${bold}firecrawl scrape${reset} https://example.com`
+    `    ${arrow} ${bold}Scrape${reset}    "Scrape the pricing page of stripe.com"    ${dim}firecrawl scrape https://stripe.com/pricing${reset}`
   );
   console.log(
-    `  ${arrow} ${dim}Add MCP:    ${reset} ${bold}firecrawl setup mcp${reset}`
+    `    ${arrow} ${bold}Search${reset}    "Search for the latest stories in AI"      ${dim}firecrawl search "latest stories in AI"${reset}`
+  );
+  console.log(
+    `    ${arrow} ${bold}Interact${reset}  "Extract the pricing tiers as JSON"        ${dim}firecrawl interact "extract pricing tiers as JSON"${reset}`
+  );
+  console.log('');
+  console.log(
+    `  ${arrow} ${dim}Add MCP:     ${reset} ${bold}firecrawl setup mcp${reset}`
   );
   console.log(
     `  ${arrow} ${dim}All commands:${reset} ${bold}firecrawl --help${reset}`
   );
   console.log('');
   console.log(
-    `  ${dim}In your AI agent, just describe what you want to build or integrate.${reset}`
+    `  ${dim}Building with firecrawl? Just describe what you want to build or integrate.${reset}`
   );
   console.log(
     `  ${dim}Example:${reset} ${bold}"I want to use firecrawl to build an onboarding flow for my insurance company"${reset}`
