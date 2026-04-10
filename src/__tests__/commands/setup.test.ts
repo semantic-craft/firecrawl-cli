@@ -15,20 +15,28 @@ describe('handleSetupCommand', () => {
     vi.restoreAllMocks();
   });
 
-  it('installs skills globally across all detected agents by default', async () => {
+  it('installs skills globally across all detected agents from both repos by default', async () => {
     await handleSetupCommand('skills', {});
 
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/cli --full-depth --global --all',
       { stdio: 'inherit' }
     );
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y skills add firecrawl/skills --full-depth --global --all',
+      { stdio: 'inherit' }
+    );
   });
 
-  it('installs skills globally for a specific agent without using --all', async () => {
+  it('installs skills globally for a specific agent from both repos without using --all', async () => {
     await handleSetupCommand('skills', { agent: 'cursor' });
 
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/cli --full-depth --global --agent cursor',
+      { stdio: 'inherit' }
+    );
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y skills add firecrawl/skills --full-depth --global --agent cursor',
       { stdio: 'inherit' }
     );
   });

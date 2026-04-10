@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 import { isAuthenticated, browserLogin, interactiveLogin } from '../utils/auth';
 import { saveCredentials } from '../utils/credentials';
 import { updateConfig, getApiKey } from '../utils/config';
-import { buildSkillsInstallArgs } from './skills-install';
+import { buildSkillsInstallArgs, SKILL_REPOS } from './skills-install';
 import { hasNpx, installSkillsNative } from './skills-native';
 
 export interface InitOptions {
@@ -216,28 +216,31 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
     switch (integration) {
       case 'skills': {
         console.log(`\n  Setting up skills...`);
-        if (hasNpx()) {
-          const args = buildSkillsInstallArgs({
-            agent: options.agent,
-            yes: options.yes || options.all,
-            global: true,
-            includeNpxYes: true,
-          });
-          try {
-            execSync(args.join(' '), { stdio: 'inherit' });
-            console.log(`  ${green}✓${reset} Skills installed`);
-          } catch {
-            console.error(
-              '  Failed to install skills. Run "firecrawl setup skills" later.'
-            );
-          }
-        } else {
-          try {
-            await installSkillsNative();
-          } catch {
-            console.error(
-              '  Failed to install skills. Run "firecrawl setup skills" later.'
-            );
+        for (const repo of SKILL_REPOS) {
+          if (hasNpx()) {
+            const args = buildSkillsInstallArgs({
+              repo,
+              agent: options.agent,
+              yes: options.yes || options.all,
+              global: true,
+              includeNpxYes: true,
+            });
+            try {
+              execSync(args.join(' '), { stdio: 'inherit' });
+              console.log(`  ${green}✓${reset} Skills installed from ${repo}`);
+            } catch {
+              console.error(
+                `  Failed to install skills from ${repo}. Run "firecrawl setup skills" later.`
+              );
+            }
+          } else {
+            try {
+              await installSkillsNative(repo);
+            } catch {
+              console.error(
+                `  Failed to install skills from ${repo}. Run "firecrawl setup skills" later.`
+              );
+            }
           }
         }
         break;
@@ -625,35 +628,38 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
 
   if (!options.skipSkills) {
     console.log(
-      `${stepLabel()} Installing firecrawl skill for AI coding agents...`
+      `${stepLabel()} Installing firecrawl skills for AI coding agents...`
     );
-    if (hasNpx()) {
-      const args = buildSkillsInstallArgs({
-        agent: options.agent,
-        yes: true,
-        global: true,
-        includeNpxYes: true,
-      });
-      try {
-        execSync(args.join(' '), { stdio: 'inherit' });
-        console.log(`${green}✓${reset} Skills installed\n`);
-      } catch {
-        console.error(
-          '\nFailed to install skills. You can retry with: firecrawl setup skills'
-        );
-        process.exit(1);
-      }
-    } else {
-      try {
-        await installSkillsNative();
-        console.log('');
-      } catch {
-        console.error(
-          '\nFailed to install skills. You can retry with: firecrawl setup skills'
-        );
-        process.exit(1);
+    for (const repo of SKILL_REPOS) {
+      if (hasNpx()) {
+        const args = buildSkillsInstallArgs({
+          repo,
+          agent: options.agent,
+          yes: true,
+          global: true,
+          includeNpxYes: true,
+        });
+        try {
+          execSync(args.join(' '), { stdio: 'inherit' });
+          console.log(`${green}✓${reset} Skills installed from ${repo}`);
+        } catch {
+          console.error(
+            `\nFailed to install skills from ${repo}. You can retry with: firecrawl setup skills`
+          );
+          process.exit(1);
+        }
+      } else {
+        try {
+          await installSkillsNative(repo);
+        } catch {
+          console.error(
+            `\nFailed to install skills from ${repo}. You can retry with: firecrawl setup skills`
+          );
+          process.exit(1);
+        }
       }
     }
+    console.log('');
   }
 
   console.log(
