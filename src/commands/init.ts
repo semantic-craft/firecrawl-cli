@@ -99,16 +99,17 @@ export const TEMPLATES: TemplateEntry[] = [
 ];
 
 /**
- * Install one skill repo with quiet output — pipes the noisy `npx skills add`
- * stdout/stderr instead of inheriting it, so users see a single clean line per
- * repo instead of the full banner / installation table / security report.
+ * Install one skill repo quietly. Captures `npx skills add` output instead of
+ * inheriting it, so users see a single line per repo. Returns the number of
+ * skills installed (parsed from the captured stdout), or null if unknown.
  *
- * On failure, prints captured stderr so the user can debug.
+ * In a TTY, shows a transient "↓ <repo>" line that gets overwritten by
+ * "✓ <repo> (N skills)" on success. In a non-TTY, prints only the final line.
  */
 async function installSkillRepoQuiet(
   repo: string,
   options: InitOptions
-): Promise<void> {
+): Promise<number | null> {
   if (hasNpx()) {
     const args = buildSkillsInstallArgs({
       repo,
@@ -118,23 +119,25 @@ async function installSkillRepoQuiet(
       includeNpxYes: true,
     });
 
-    // In a TTY, show a transient "↓ <repo>" line that gets overwritten by
-    // "✓ <repo>" once the install completes. In a non-TTY (CI logs, piped),
-    // just print the final line — `\r` overwrites don't render correctly.
     const isTty = process.stdout.isTTY;
     if (isTty) {
       process.stdout.write(`  ${dim}↓ ${repo}${reset}`);
     }
     try {
-      execSync(args.join(' '), {
+      const stdout = execSync(args.join(' '), {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: cleanNpmEnv(),
       });
+      const count = parseSkillCount(stdout?.toString() ?? '');
+      const suffix = count != null ? ` ${dim}(${count} skills)${reset}` : '';
       if (isTty) {
-        process.stdout.write(`\r  ${green}✓${reset} ${repo}            \n`);
+        process.stdout.write(
+          `\r  ${green}✓${reset} ${repo}${suffix}            \n`
+        );
       } else {
-        console.log(`  ${green}✓${reset} ${repo}`);
+        console.log(`  ${green}✓${reset} ${repo}${suffix}`);
       }
+      return count;
     } catch (err) {
       if (isTty) {
         process.stdout.write(`\r  ${dim}✗${reset} ${repo}            \n`);
@@ -156,52 +159,44 @@ async function installSkillRepoQuiet(
       }
       throw err;
     }
-    return;
   }
 
-  // No npx available — use native fallback. It prints its own dimmed status.
+  // No npx — fall back to native installer. It prints its own status.
   await installSkillsNative(repo);
+  return null;
+}
+
+/** Parse "Found N skills" or "Installed N skills" from npx skills output. */
+function parseSkillCount(output: string): number | null {
+  const match = output.match(/(?:Found|Installed)\s+(\d+)\s+skills?/);
+  return match ? parseInt(match[1], 10) : null;
 }
 
 /**
- * Print the post-install next-steps block. Shown at the end of both the
- * interactive and non-interactive init flows.
+ * Print the post-install next-steps block. Brief by design — confirms what was
+ * installed and gives 4 entry points (AI prompt, direct CLI, MCP, help).
  */
-function printNextSteps(): void {
+function printNextSteps(skillCount: number | null): void {
   const arrow = `${dim}→${reset}`;
-  const heading = (text: string) => `${bold}${text}${reset}`;
+  const summary =
+    skillCount != null
+      ? `${green}✓${reset} Installed ${bold}${skillCount} skills${reset} ${dim}across your AI coding agents${reset}`
+      : `${green}✓${reset} Skills installed ${dim}across your AI coding agents${reset}`;
 
   console.log('');
-  console.log(`${green}${bold}  ✓ Firecrawl is ready${reset}`);
-  console.log('');
-  console.log(`  Skills are installed globally across your AI coding agents.`);
-  console.log(
-    `  Use Firecrawl to ${bold}search${reset}, ${bold}scrape${reset}, ${bold}crawl${reset}, and ${bold}interact${reset} with the web.`
-  );
-  console.log('');
-  console.log(`  ${heading('Next steps')}`);
-  console.log('');
-  console.log(`  ${dim}Ask your AI coding agent:${reset}`);
-  console.log(
-    `    ${arrow} "Use firecrawl to scrape pricing from competitor sites and save to JSON"`
-  );
-  console.log(
-    `    ${arrow} "Build a Next.js dashboard that uses firecrawl to search tech news"`
-  );
-  console.log('');
-  console.log(`  ${dim}Or run firecrawl directly:${reset}`);
-  console.log(
-    `    ${arrow} ${bold}firecrawl scrape${reset} https://news.ycombinator.com`
-  );
-  console.log(
-    `    ${arrow} ${bold}firecrawl search${reset} "best AI coding tools 2026" --limit 5`
-  );
+  console.log(`  ${summary}`);
   console.log('');
   console.log(
-    `  ${dim}Want MCP for editor integration? Run${reset} ${bold}firecrawl setup mcp${reset}`
+    `  ${arrow} ${dim}Ask your AI:${reset} "Use firecrawl to scrape pricing into JSON"`
   );
   console.log(
-    `  ${dim}Run${reset} ${bold}firecrawl --help${reset} ${dim}for the full command reference.${reset}`
+    `  ${arrow} ${dim}Run direct: ${reset} ${bold}firecrawl scrape${reset} https://example.com`
+  );
+  console.log(
+    `  ${arrow} ${dim}Add MCP:    ${reset} ${bold}firecrawl setup mcp${reset}`
+  );
+  console.log(
+    `  ${arrow} ${dim}All commands:${reset} ${bold}firecrawl --help${reset}`
   );
   console.log('');
 }
@@ -290,7 +285,7 @@ async function stepAuth(options: InitOptions): Promise<boolean> {
   }
 }
 
-async function stepIntegrations(options: InitOptions): Promise<void> {
+async function stepIntegrations(options: InitOptions): Promise<number | null> {
   const { checkbox, confirm } = await import('@inquirer/prompts');
 
   const wantIntegrations = await confirm({
@@ -298,7 +293,7 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
     default: true,
   });
 
-  if (!wantIntegrations) return;
+  if (!wantIntegrations) return null;
 
   const integrations = await checkbox<string>({
     message: 'Which integrations?',
@@ -321,16 +316,18 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
 
   if (integrations.length === 0) {
     console.log(`  ${dim}No integrations selected.${reset}\n`);
-    return;
+    return null;
   }
 
+  let totalSkills: number | null = null;
   for (const integration of integrations) {
     switch (integration) {
       case 'skills': {
         console.log(`\n  Installing skills...`);
         for (const repo of SKILL_REPOS) {
           try {
-            await installSkillRepoQuiet(repo, options);
+            const count = await installSkillRepoQuiet(repo, options);
+            if (count != null) totalSkills = (totalSkills ?? 0) + count;
           } catch {
             console.error(
               `  ${dim}Run "firecrawl setup skills" later to retry.${reset}`
@@ -384,7 +381,7 @@ async function stepIntegrations(options: InitOptions): Promise<void> {
       }
     }
   }
-  console.log('');
+  return totalSkills;
 }
 
 function copyTemplateFiles(
@@ -642,14 +639,15 @@ export async function handleInitCommand(
   }
 
   // Step 3: Integrations (skills, MCP, env)
+  let skillCount: number | null = null;
   if (!options.skipSkills) {
-    await stepIntegrations(options);
+    skillCount = await stepIntegrations(options);
   }
 
   // Step 4: Template
   await stepTemplate();
 
-  printNextSteps();
+  printNextSteps(skillCount);
 }
 
 async function runNonInteractive(options: InitOptions): Promise<void> {
@@ -718,13 +716,15 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
     }
   }
 
+  let skillCount: number | null = null;
   if (!options.skipSkills) {
     console.log(
       `${stepLabel()} Installing firecrawl skills for AI coding agents...`
     );
     for (const repo of SKILL_REPOS) {
       try {
-        await installSkillRepoQuiet(repo, options);
+        const count = await installSkillRepoQuiet(repo, options);
+        if (count != null) skillCount = (skillCount ?? 0) + count;
       } catch {
         console.error(
           `\n${dim}Failed to install skills from ${repo}. Retry with: firecrawl setup skills${reset}`
@@ -734,5 +734,5 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
     }
   }
 
-  printNextSteps();
+  printNextSteps(skillCount);
 }
