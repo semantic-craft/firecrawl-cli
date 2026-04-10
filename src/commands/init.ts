@@ -199,6 +199,13 @@ function printNextSteps(skillCount: number | null): void {
     `  ${arrow} ${dim}All commands:${reset} ${bold}firecrawl --help${reset}`
   );
   console.log('');
+  console.log(
+    `  ${dim}In your AI agent, just describe what you want to build or integrate.${reset}`
+  );
+  console.log(
+    `  ${dim}Example:${reset} ${bold}"I want to use firecrawl to build an onboarding flow for my insurance company"${reset}`
+  );
+  console.log('');
 }
 
 async function stepInstall(): Promise<boolean> {
