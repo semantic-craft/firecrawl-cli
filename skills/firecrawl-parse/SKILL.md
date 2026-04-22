@@ -1,7 +1,7 @@
 ---
 name: firecrawl-parse
 description: |
-  Convert a local file (PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML) into clean markdown saved to disk. Use this skill when the user points at a file on disk and wants its content — says "parse this PDF", "convert this Word doc", "read this file", "extract text from", "PDF to markdown", or provides a local path (not a URL). Also supports AI summary and Q&A. Use this instead of `scrape` for local files.
+  Efficiently extract and convert the contents of any local file—such as PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, or HTML—into clean, well-formatted markdown saved to disk. Use this skill whenever the user requests to parse, read, or extract information from a file on their computer, including phrases like “parse this PDF”, “convert this document”, “read this file”, “extract text from”, or when a local file path (not a URL) is provided. This skill offers advanced options like generating AI-powered summaries and answering questions based on the file's content. Prefer this tool over `scrape` when handling local files to deliver precise, structured outputs for downstream tasks.
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -35,7 +35,7 @@ firecrawl parse ./paper.pdf -Q "What are the main conclusions?" \
   -o .firecrawl/paper-qa.md
 ```
 
-Then `head`, `grep`, or incrementally read the file — don't load the whole thing at once.
+Then `head`, `grep`, `rg` etc., or incrementally read the file - don't load the whole thing at once.
 
 ## Options
 
@@ -53,8 +53,8 @@ Then `head`, `grep`, or incrementally read the file — don't load the whole thi
 - Quote paths with spaces: `firecrawl parse "./My Doc.pdf" -o .firecrawl/mydoc.md`.
 - Credits: ~1 per PDF page; HTML is 1 flat.
 - Check `.firecrawl/` before re-parsing the same file.
+- To check your credit balance (recommended for batch processing and similar workflows), use the `firecrawl credit-usage` command.
 
 ## See also
 
 - [firecrawl-scrape](../firecrawl-scrape/SKILL.md) — same idea for URLs
-- [firecrawl-agent](../firecrawl-agent/SKILL.md) — structured extraction with a schema
