@@ -1,7 +1,7 @@
 ---
 name: firecrawl-parse
 description: |
-  Convert a local file (PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML) into clean markdown, HTML, or structured JSON. Use this skill when the user points at a file on disk and wants its content extracted — says "parse this PDF", "convert this Word doc", "read this file", "extract text from", "PDF to markdown", "DOCX to markdown", or provides a local path (not a URL). Also supports AI summary and query ("what does this PDF say about X?"). Use this instead of `scrape` for anything on the local filesystem.
+  Convert a local file (PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML) into clean markdown. Use this skill when the user points at a file on disk and wants its content — says "parse this PDF", "convert this Word doc", "read this file", "extract text from", "PDF to markdown", "DOCX to markdown", or provides a local path (not a URL). Also supports AI summary and Q&A. Use this instead of `scrape` for anything on the local filesystem.
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -9,61 +9,65 @@ allowed-tools:
 
 # firecrawl parse
 
-Parse a local file into clean, LLM-optimized markdown. Supported formats: **HTML, PDF, DOCX, DOC, ODT, RTF, XLSX, XLS**.
+Turn any local document into clean markdown. Supported file types: **PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML**.
 
 ## When to use
 
-- You have a file on disk (not a URL) and want its text
+- You have a file on disk (not a URL) and want its text as markdown
 - User drops a PDF/DOCX and asks what it says, or to summarize it
-- You need markdown from a Word doc, spreadsheet, or PDF to feed into other tools
+- You need a Word doc, spreadsheet, or PDF as markdown to feed into other tools
 - Use `scrape` instead when the source is a URL
 
 ## Quick start
 
 ```bash
-# Basic — PDF/DOCX/etc. to markdown
+# Any file → clean markdown
 firecrawl parse ./paper.pdf -o .firecrawl/paper.md
 
-# Summary shortcut (AI-generated overview)
+# AI summary
 firecrawl parse ./paper.pdf -S -o .firecrawl/summary.md
 
 # Ask a question about the doc
 firecrawl parse ./paper.pdf -Q "What are the main conclusions?"
-
-# Multiple formats → JSON bundle (markdown + links + summary + metadata)
-firecrawl parse ./paper.pdf -f markdown,links,summary --pretty -o .firecrawl/paper.json
-
-# Raw HTML output
-firecrawl parse ./paper.pdf -H -o .firecrawl/paper.html
 ```
+
+That covers almost every case. The rest below is for when you need more.
 
 ## Options
 
-| Option                   | Description                                                                                         |
-| ------------------------ | --------------------------------------------------------------------------------------------------- |
-| `-f, --format <formats>` | Output formats (comma-separated): markdown, html, rawHtml, links, images, summary, json, attributes |
-| `-S, --summary`          | Shortcut for `--format summary` (AI summary)                                                        |
-| `-H, --html`             | Shortcut for `--format html` (raw HTML)                                                             |
-| `-Q, --query <prompt>`   | Ask a question about the parsed content                                                             |
-| `--only-main-content`    | Strip boilerplate, main content only                                                                |
-| `--include-tags <tags>`  | Only include these HTML tags                                                                        |
-| `--exclude-tags <tags>`  | Exclude these HTML tags                                                                             |
-| `--timeout <ms>`         | Timeout for the parse job                                                                           |
-| `-o, --output <path>`    | Output file path (default: stdout)                                                                  |
-| `--json`                 | Force JSON output                                                                                   |
-| `--pretty`               | Pretty-print JSON                                                                                   |
-| `--timing`               | Show request duration                                                                               |
+| Option                 | Description                                      |
+| ---------------------- | ------------------------------------------------ |
+| `-S, --summary`        | AI-generated summary (shortcut for `-f summary`) |
+| `-Q, --query <prompt>` | Ask a question about the parsed content          |
+| `-o, --output <path>`  | Output file path (default: stdout)               |
+| `--only-main-content`  | Strip boilerplate                                |
+| `--timing`             | Show request duration                            |
+
+## Other formats
+
+Default output is markdown. Pass `-f` to request alternates or bundles:
+
+```bash
+firecrawl parse ./paper.pdf -f html -o paper.html        # cleaned HTML
+firecrawl parse ./page.html -f markdown,links,images \   # JSON bundle
+  --pretty -o page.json
+```
+
+- `markdown` (default), `html`, `rawHtml`, `summary` — work on every file type
+- `links`, `images` — work on HTML input; **return empty arrays for PDF/DOCX** (those formats don't carry link/image structure)
+- Multiple formats → JSON output keyed by format name
+- For structured/schema-based extraction, use `firecrawl agent` instead
 
 ## Tips
 
-- **Scrape vs parse**: `scrape` takes a URL, `parse` takes a local file path. A remote PDF URL can still go through `scrape`.
-- **Single vs multi format**: one `--format` value returns raw content; multiple return JSON with keys for each format.
+- **Scrape vs parse**: `scrape` takes a URL, `parse` takes a local file path.
 - **Quote paths with spaces**: `firecrawl parse "./My Doc.pdf"`.
-- **PDFs may return empty `links`/`images`** — PDF structure doesn't always carry link/image metadata like HTML does. That's expected, not a failure.
-- **Large docs**: parse time scales with file size. A ~50-page PDF takes ~10s. Use `--timing` to check.
-- **Query vs save-and-grep**: `-Q` is convenient for single questions. For deeper analysis, save to file first, then `grep`/read the markdown.
+- **Credits scale with PDF pages**: ~1 credit per page. HTML is typically 1 credit flat.
+- **Parse time**: ~10s for a 50-page PDF. Use `--timing` to measure.
+- **Query vs save-and-grep**: `-Q` is great for a single question. For deeper analysis, save to markdown first, then `grep` or read the file.
 
 ## See also
 
 - [firecrawl-scrape](../firecrawl-scrape/SKILL.md) — same idea but for URLs
+- [firecrawl-agent](../firecrawl-agent/SKILL.md) — structured data extraction with a schema
 - [firecrawl-download](../firecrawl-download/SKILL.md) — bulk save a site as local files (which you can then parse)
