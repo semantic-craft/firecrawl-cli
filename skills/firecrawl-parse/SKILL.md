@@ -45,7 +45,6 @@ Then `head`, `grep`, or incrementally read the file — don't load the whole thi
 | `-Q, --query <prompt>` | Ask a question about the parsed content |
 | `-o, --output <path>`  | Output file path — **always use this**  |
 | `-f, --format <fmt>`   | `markdown` (default), `html`, `summary` |
-| `--only-main-content`  | Strip boilerplate                       |
 | `--timeout <ms>`       | Timeout for the parse job               |
 | `--timing`             | Show request duration                   |
 
