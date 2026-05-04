@@ -372,10 +372,6 @@ function createScrapeCommand(): Command {
     .option('--actions <json>', 'JSON actions array to run during scrape')
     .option('--actions-file <path>', 'Path to JSON actions file')
     .option('--proxy <proxy>', 'Proxy mode for scraping (e.g., auto, basic)')
-    .option(
-      '--webhook <url-or-json>',
-      'Webhook URL or webhook configuration object'
-    )
 
     .action(async (positionalArgs, options) => {
       // Collect URLs from positional args and --url option
@@ -405,12 +401,10 @@ function createScrapeCommand(): Command {
 
       let schema: Record<string, unknown> | undefined;
       let actions: Record<string, unknown>[] | undefined;
-      let webhook: string | Record<string, unknown> | undefined;
 
       try {
         schema = parseJsonObject(options.schema, undefined, '--schema');
         actions = parseJsonArray(options.actions, undefined, '--actions');
-        webhook = parseWebhookOption(options.webhook, '--webhook');
       } catch (error) {
         if (error instanceof Error) {
           console.error('Error:', error.message);
@@ -460,7 +454,6 @@ function createScrapeCommand(): Command {
         schema,
         actions,
         proxy: options.proxy,
-        webhook,
       };
 
       if (urls.length === 1) {

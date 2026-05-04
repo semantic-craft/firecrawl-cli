@@ -133,10 +133,6 @@ export async function executeScrape(
     scrapeParams.proxy = options.proxy;
   }
 
-  if (options.webhook) {
-    scrapeParams.webhook = options.webhook;
-  }
-
   if (options.lockdown) {
     scrapeParams.lockdown = true;
   }

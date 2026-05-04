@@ -63,8 +63,6 @@ export interface ScrapeOptions {
   actions?: Record<string, unknown>[];
   /** Proxy mode */
   proxy?: string;
-  /** Webhook URL or webhook config */
-  webhook?: string | Record<string, unknown>;
   /** Persistent browser profile for maintaining state across scrapes */
   profile?: {
     name: string;
