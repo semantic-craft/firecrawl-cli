@@ -101,13 +101,15 @@ async function postJson<T>(
     }
 
     if (!response.ok) {
-      const errMsg =
-        (parsed &&
-          typeof parsed === 'object' &&
-          'error' in parsed &&
-          typeof (parsed as { error?: unknown }).error === 'string' &&
-          ((parsed as { error: string }).error as string)) ||
-        `HTTP ${response.status} ${response.statusText}`;
+      let errMsg = `HTTP ${response.status} ${response.statusText}`;
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        'error' in parsed &&
+        typeof (parsed as { error?: unknown }).error === 'string'
+      ) {
+        errMsg = (parsed as { error: string }).error;
+      }
       return { success: false, error: errMsg };
     }
 
