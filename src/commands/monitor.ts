@@ -4,9 +4,13 @@
  * Monitors run recurring scrapes/crawls and diff each result against the last
  * retained snapshot. See features/monitoring in the docs.
  *
- * The SDK (@mendable/firecrawl-js@4.17.0) does not yet expose the monitor
- * endpoints, so this command hits /v2/monitor directly via fetch — same
- * pattern parse.ts uses.
+ * @mendable/firecrawl-js@4.22.2 exposes monitor methods (createMonitor,
+ * listMonitors, getMonitor, updateMonitor, deleteMonitor, runMonitor,
+ * listMonitorChecks, getMonitorCheck), but its HttpClient injects a top-level
+ * `origin: js-sdk@<version>` field into every POST/PATCH body and the
+ * /v2/monitor endpoint rejects that with "Unrecognized key in body". Until the
+ * SDK strips `origin` for monitor requests (or the API accepts it), we hit
+ * /v2/monitor directly via fetch — same pattern parse.ts uses.
  *
  * Subcommands:
  *   create | list | get | update | delete | run | checks | check
