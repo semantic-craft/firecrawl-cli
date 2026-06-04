@@ -16,6 +16,7 @@ import {
   WORKFLOW_SKILL_REPOS,
 } from './skills-install';
 import { hasNpx, installSkillsNative } from './skills-native';
+import { installMcp } from './setup';
 
 export interface InitOptions {
   global?: boolean;
@@ -388,27 +389,18 @@ async function stepIntegrations(options: InitOptions): Promise<number | null> {
       }
       case 'mcp': {
         console.log(`\n  Setting up MCP server...`);
-        const apiKey = getApiKey();
+        const apiKey = options.apiKey ?? getApiKey();
         if (!apiKey) {
           console.log(
             `  ${dim}Skipped — no API key found. Run "firecrawl login" first, then "firecrawl setup mcp".${reset}`
           );
           break;
         }
-        const args = [
-          'npx',
-          '-y',
-          'add-mcp',
-          '"npx -y firecrawl-mcp"',
-          '--name',
-          'firecrawl',
-        ];
-        if (options.global) args.push('--global');
-        if (options.agent) args.push('--agent', options.agent);
         try {
-          execSync(args.join(' '), {
-            stdio: 'inherit',
-            env: { ...cleanNpmEnv(), FIRECRAWL_API_KEY: apiKey },
+          await installMcp({
+            ...options,
+            apiKey,
+            includeNpxYes: true,
           });
           console.log(`  ${green}✓${reset} MCP server installed`);
         } catch {
@@ -705,6 +697,7 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
   if (!options.skipAuth) steps.push('auth');
   if (!options.skipInstall) steps.push('install');
   if (!options.skipSkills) steps.push('skills');
+  if (!options.skipSkills) steps.push('mcp');
   const total = steps.length;
   let current = 0;
 
@@ -784,6 +777,30 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
             : 'firecrawl setup skills';
         console.error(
           `\n${dim}Failed to install skills from ${repo}. Retry with: ${retryCommand}${reset}`
+        );
+        process.exit(1);
+      }
+    }
+
+    console.log(
+      `${stepLabel()} Installing firecrawl MCP for AI coding agents...`
+    );
+    const apiKey = options.apiKey ?? getApiKey();
+    if (!apiKey) {
+      console.log(
+        `${dim}Skipped MCP — no API key found. Retry with: firecrawl setup mcp${reset}\n`
+      );
+    } else {
+      try {
+        await installMcp({
+          ...options,
+          apiKey,
+          includeNpxYes: true,
+        });
+        console.log(`${green}✓${reset} MCP server installed\n`);
+      } catch {
+        console.error(
+          `\n${dim}Failed to install MCP. Retry with: firecrawl setup mcp${reset}`
         );
         process.exit(1);
       }

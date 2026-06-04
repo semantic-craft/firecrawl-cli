@@ -20,6 +20,12 @@ export interface SetupOptions {
   agent?: string;
 }
 
+export interface McpInstallOptions extends SetupOptions {
+  apiKey?: string;
+  includeNpxYes?: boolean;
+  yes?: boolean;
+}
+
 /**
  * Main setup command handler
  */
@@ -35,7 +41,7 @@ export async function handleSetupCommand(
       await installSkills(options, WORKFLOW_SKILL_REPOS);
       break;
     case 'mcp':
-      await installMcp(options);
+      await handleInstallMcp(options);
       break;
     default:
       console.error(`Unknown setup subcommand: ${subcommand}`);
@@ -90,40 +96,55 @@ async function installSkills(
   }
 }
 
-async function installMcp(options: SetupOptions): Promise<void> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    console.error(
-      'No API key found. Please run `firecrawl login` first, or set FIRECRAWL_API_KEY.'
-    );
-    process.exit(1);
+export function buildMcpInstallArgs(options: McpInstallOptions = {}): string[] {
+  const args = ['npx'];
+
+  if (options.includeNpxYes) {
+    args.push('-y');
   }
 
-  const args = [
-    'npx',
-    'add-mcp',
-    `"npx -y firecrawl-mcp"`,
-    '--name',
-    'firecrawl',
-  ];
+  args.push('add-mcp', '"npx -y firecrawl-mcp"', '--name', 'firecrawl');
 
-  if (options.global) {
+  if (options.global ?? true) {
     args.push('--global');
   }
 
   if (options.agent) {
     args.push('--agent', options.agent);
+  } else {
+    args.push('--all');
   }
 
+  if (options.yes) {
+    args.push('--yes');
+  }
+
+  return args;
+}
+
+export async function installMcp(options: McpInstallOptions): Promise<void> {
+  const apiKey = options.apiKey ?? getApiKey();
+  if (!apiKey) {
+    throw new Error(
+      'No API key found. Please run `firecrawl login` first, or set FIRECRAWL_API_KEY.'
+    );
+  }
+
+  const args = buildMcpInstallArgs(options);
   const cmd = args.join(' ');
   console.log(`Running: ${cmd}\n`);
 
+  execSync(cmd, {
+    stdio: 'inherit',
+    env: { ...cleanNpmEnv(), FIRECRAWL_API_KEY: apiKey },
+  });
+}
+
+async function handleInstallMcp(options: SetupOptions): Promise<void> {
   try {
-    execSync(cmd, {
-      stdio: 'inherit',
-      env: { ...cleanNpmEnv(), FIRECRAWL_API_KEY: apiKey },
-    });
-  } catch {
+    await installMcp(options);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : 'Unknown MCP error');
     process.exit(1);
   }
 }
