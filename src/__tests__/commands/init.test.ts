@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execSync } from 'child_process';
 import { handleInitCommand } from '../../commands/init';
+import { detectAgents } from '../../utils/agents';
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
+}));
+
+vi.mock('../../utils/agents', () => ({
+  detectAgents: vi.fn(),
 }));
 
 describe('handleInitCommand', () => {
@@ -11,6 +16,22 @@ describe('handleInitCommand', () => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(detectAgents).mockResolvedValue([
+      {
+        id: 'cursor',
+        name: 'Cursor',
+        installed: true,
+        mcpRegistered: false,
+        configPaths: [],
+      },
+      {
+        id: 'codex',
+        name: 'Codex',
+        installed: true,
+        mcpRegistered: false,
+        configPaths: [],
+      },
+    ]);
   });
 
   afterEach(() => {
@@ -69,7 +90,7 @@ describe('handleInitCommand', () => {
     });
 
     expect(execSync).toHaveBeenCalledWith(
-      'npx -y add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --all --yes',
+      'npx -y add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --agent cursor --agent codex --yes',
       expect.objectContaining({
         stdio: 'inherit',
         env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
