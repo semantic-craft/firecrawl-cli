@@ -2,15 +2,43 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execSync } from 'child_process';
 import { handleSetupCommand } from '../../commands/setup';
 import { initializeConfig, resetConfig } from '../../utils/config';
+import { detectAgents } from '../../utils/agents';
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
+}));
+
+vi.mock('../../utils/agents', () => ({
+  detectAgents: vi.fn(),
 }));
 
 describe('handleSetupCommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetConfig();
+    vi.mocked(detectAgents).mockResolvedValue([
+      {
+        id: 'cursor',
+        name: 'Cursor',
+        installed: true,
+        mcpRegistered: false,
+        configPaths: [],
+      },
+      {
+        id: 'codex',
+        name: 'Codex',
+        installed: true,
+        mcpRegistered: false,
+        configPaths: [],
+      },
+      {
+        id: 'continue',
+        name: 'Continue',
+        installed: true,
+        mcpRegistered: false,
+        configPaths: [],
+      },
+    ]);
   });
 
   afterEach(() => {
@@ -53,13 +81,13 @@ describe('handleSetupCommand', () => {
     );
   });
 
-  it('installs MCP globally across all detected agents by default', async () => {
+  it('installs MCP globally across supported detected agents by default', async () => {
     initializeConfig({ apiKey: 'fc-test' });
 
     await handleSetupCommand('mcp', {});
 
     expect(execSync).toHaveBeenCalledWith(
-      'npx add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --all',
+      'npx add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --agent cursor --agent codex',
       expect.objectContaining({
         stdio: 'inherit',
         env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
@@ -79,6 +107,23 @@ describe('handleSetupCommand', () => {
         env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
       })
     );
+  });
+
+  it('fails MCP install when no supported agents are detected', async () => {
+    vi.mocked(detectAgents).mockResolvedValue([]);
+    initializeConfig({ apiKey: 'fc-test' });
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit');
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(handleSetupCommand('mcp', {})).rejects.toThrow('exit');
+
+    expect(execSync).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      'No supported AI coding agents detected. Install an agent first, or run `firecrawl setup mcp --agent <agent>`.'
+    );
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
   it('strips inherited npm_* env vars before nested npx calls', async () => {

@@ -4,6 +4,7 @@
  */
 
 import { execSync } from 'child_process';
+import { detectAgents, type AgentId } from '../utils/agents';
 import { getApiKey } from '../utils/config';
 import {
   buildSkillsInstallArgs,
@@ -24,7 +25,17 @@ export interface McpInstallOptions extends SetupOptions {
   apiKey?: string;
   includeNpxYes?: boolean;
   yes?: boolean;
+  agents?: string[];
 }
+
+const ADD_MCP_AGENT_IDS: Partial<Record<AgentId, string>> = {
+  cursor: 'cursor',
+  'claude-code': 'claude-code',
+  'claude-desktop': 'claude-desktop',
+  vscode: 'vscode',
+  windsurf: 'windsurf',
+  codex: 'codex',
+};
 
 /**
  * Main setup command handler
@@ -111,8 +122,10 @@ export function buildMcpInstallArgs(options: McpInstallOptions = {}): string[] {
 
   if (options.agent) {
     args.push('--agent', options.agent);
-  } else {
-    args.push('--all');
+  } else if (options.agents) {
+    for (const agent of options.agents) {
+      args.push('--agent', agent);
+    }
   }
 
   if (options.yes) {
@@ -130,7 +143,24 @@ export async function installMcp(options: McpInstallOptions): Promise<void> {
     );
   }
 
-  const args = buildMcpInstallArgs(options);
+  const detectedAgents =
+    options.agent || options.agents
+      ? options.agents
+      : (await detectAgents())
+          .filter((agent) => agent.installed)
+          .map((agent) => ADD_MCP_AGENT_IDS[agent.id])
+          .filter((agent): agent is string => Boolean(agent));
+
+  if (!options.agent && (!detectedAgents || detectedAgents.length === 0)) {
+    throw new Error(
+      'No supported AI coding agents detected. Install an agent first, or run `firecrawl setup mcp --agent <agent>`.'
+    );
+  }
+
+  const args = buildMcpInstallArgs({
+    ...options,
+    agents: detectedAgents,
+  });
   const cmd = args.join(' ');
   console.log(`Running: ${cmd}\n`);
 
