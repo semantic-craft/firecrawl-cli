@@ -6,12 +6,15 @@ import { compareVersions, getLatestVersion } from './npm-registry';
 
 const CACHE_FILENAME = 'update-check.json';
 const CACHE_TTL_MS = 20 * 60 * 60 * 1000;
+const NOTICE_TTL_MS = 12 * 60 * 60 * 1000;
 const RELEASE_NOTES_URL = 'https://github.com/firecrawl/cli/releases/latest';
 const INSTALL_COMMAND = 'npm install -g firecrawl-cli';
 
 interface UpdateCache {
   latestVersion: string;
   checkedAt: string;
+  lastShownVersion?: string;
+  lastShownAt?: string;
 }
 
 export interface UpdateNoticeOptions {
@@ -42,7 +45,13 @@ function supportsColor(stderr: Pick<NodeJS.WriteStream, 'isTTY'>): boolean {
 async function readCachedLatest(
   cachePath: string,
   now: Date
-): Promise<{ latestVersion?: string; stale: boolean }> {
+): Promise<{
+  latestVersion?: string;
+  checkedAt?: string;
+  stale: boolean;
+  lastShownVersion?: string;
+  lastShownAt?: string;
+}> {
   try {
     const raw = await fs.readFile(cachePath, 'utf-8');
     const parsed = JSON.parse(raw) as Partial<UpdateCache>;
@@ -56,7 +65,13 @@ async function readCachedLatest(
     const checkedAt = new Date(parsed.checkedAt).getTime();
     const stale =
       !Number.isFinite(checkedAt) || now.getTime() - checkedAt > CACHE_TTL_MS;
-    return { latestVersion: parsed.latestVersion, stale };
+    return {
+      latestVersion: parsed.latestVersion,
+      checkedAt: parsed.checkedAt,
+      stale,
+      lastShownVersion: parsed.lastShownVersion,
+      lastShownAt: parsed.lastShownAt,
+    };
   } catch {
     return { stale: true };
   }
@@ -64,16 +79,11 @@ async function readCachedLatest(
 
 async function writeCachedLatest(
   cachePath: string,
-  latestVersion: string,
-  now: Date
+  cache: UpdateCache
 ): Promise<void> {
   try {
     await fs.mkdir(path.dirname(cachePath), { recursive: true });
-    await fs.writeFile(
-      cachePath,
-      `${JSON.stringify({ latestVersion, checkedAt: now.toISOString() })}\n`,
-      'utf-8'
-    );
+    await fs.writeFile(cachePath, `${JSON.stringify(cache)}\n`, 'utf-8');
   } catch {
     // Update checks should never make a real command fail.
   }
@@ -110,6 +120,24 @@ function shouldShowNotice(latestVersion: string | undefined): boolean {
   );
 }
 
+function noticeWasRecentlyShown(
+  cache: {
+    lastShownVersion?: string;
+    lastShownAt?: string;
+  },
+  latestVersion: string,
+  now: Date
+): boolean {
+  if (cache.lastShownVersion !== latestVersion || !cache.lastShownAt) {
+    return false;
+  }
+
+  const lastShownAt = new Date(cache.lastShownAt).getTime();
+  return (
+    Number.isFinite(lastShownAt) && now.getTime() - lastShownAt <= NOTICE_TTL_MS
+  );
+}
+
 export async function maybeShowUpdateNotice(
   options: UpdateNoticeOptions = {}
 ): Promise<void> {
@@ -121,15 +149,29 @@ export async function maybeShowUpdateNotice(
   const cached = await readCachedLatest(cachePath, now);
 
   let latestVersion = cached.latestVersion;
+  let checkedAt = cached.checkedAt;
   if (cached.stale) {
     const latest = await getLatestVersion(packageJson.name, 750);
     if (!latest.unreachable && latest.version) {
       latestVersion = latest.version;
-      await writeCachedLatest(cachePath, latest.version, now);
+      checkedAt = now.toISOString();
+      await writeCachedLatest(cachePath, {
+        latestVersion: latest.version,
+        checkedAt,
+        lastShownVersion: cached.lastShownVersion,
+        lastShownAt: cached.lastShownAt,
+      });
     }
   }
 
   if (!shouldShowNotice(latestVersion) || latestVersion === undefined) return;
+  if (noticeWasRecentlyShown(cached, latestVersion, now)) return;
 
   stderr.write(`${colorize(formatUpdateNotice(latestVersion), stderr)}\n\n`);
+  await writeCachedLatest(cachePath, {
+    latestVersion,
+    checkedAt: checkedAt ?? now.toISOString(),
+    lastShownVersion: latestVersion,
+    lastShownAt: now.toISOString(),
+  });
 }

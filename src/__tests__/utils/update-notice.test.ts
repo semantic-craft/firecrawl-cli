@@ -91,6 +91,67 @@ describe('update notice', () => {
     );
   });
 
+  it('does not print the same update twice within 12 hours', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'update-check.json'),
+      JSON.stringify({
+        latestVersion: '99.99.99',
+        checkedAt: new Date('2026-06-04T12:00:00.000Z').toISOString(),
+        lastShownVersion: '99.99.99',
+        lastShownAt: new Date('2026-06-04T12:30:00.000Z').toISOString(),
+      })
+    );
+
+    await maybeShowUpdateNotice({
+      cacheDir: tmpDir,
+      now: new Date('2026-06-04T13:00:00.000Z'),
+      stderr: stderr(),
+    });
+
+    expect(getLatestVersion).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('prints the same update again after 12 hours', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'update-check.json'),
+      JSON.stringify({
+        latestVersion: '99.99.99',
+        checkedAt: new Date('2026-06-04T12:00:00.000Z').toISOString(),
+        lastShownVersion: '99.99.99',
+        lastShownAt: new Date('2026-06-04T00:00:00.000Z').toISOString(),
+      })
+    );
+
+    await maybeShowUpdateNotice({
+      cacheDir: tmpDir,
+      now: new Date('2026-06-04T13:00:00.000Z'),
+      stderr: stderr(),
+    });
+
+    expect(write).toHaveBeenCalledWith(expect.stringContaining('99.99.99'));
+  });
+
+  it('prints a different newer version even inside the cooldown', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'update-check.json'),
+      JSON.stringify({
+        latestVersion: '100.0.0',
+        checkedAt: new Date('2026-06-04T12:00:00.000Z').toISOString(),
+        lastShownVersion: '99.99.99',
+        lastShownAt: new Date('2026-06-04T12:30:00.000Z').toISOString(),
+      })
+    );
+
+    await maybeShowUpdateNotice({
+      cacheDir: tmpDir,
+      now: new Date('2026-06-04T13:00:00.000Z'),
+      stderr: stderr(),
+    });
+
+    expect(write).toHaveBeenCalledWith(expect.stringContaining('100.0.0'));
+  });
+
   it('refreshes a stale cache from npm', async () => {
     vi.mocked(getLatestVersion).mockResolvedValue({
       version: '99.99.99',
