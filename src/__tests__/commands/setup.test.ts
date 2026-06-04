@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execSync } from 'child_process';
 import { handleSetupCommand } from '../../commands/setup';
+import { initializeConfig, resetConfig } from '../../utils/config';
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
@@ -9,9 +10,11 @@ vi.mock('child_process', () => ({
 describe('handleSetupCommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetConfig();
   });
 
   afterEach(() => {
+    resetConfig();
     vi.restoreAllMocks();
   });
 
@@ -47,6 +50,34 @@ describe('handleSetupCommand', () => {
     expect(execSync).toHaveBeenCalledWith(
       'npx -y skills add firecrawl/firecrawl-workflows --full-depth --global --all',
       expect.objectContaining({ stdio: 'inherit' })
+    );
+  });
+
+  it('installs MCP globally across all detected agents by default', async () => {
+    initializeConfig({ apiKey: 'fc-test' });
+
+    await handleSetupCommand('mcp', {});
+
+    expect(execSync).toHaveBeenCalledWith(
+      'npx add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --all',
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
+      })
+    );
+  });
+
+  it('installs MCP for a specific agent without using --all', async () => {
+    initializeConfig({ apiKey: 'fc-test' });
+
+    await handleSetupCommand('mcp', { agent: 'cursor' });
+
+    expect(execSync).toHaveBeenCalledWith(
+      'npx add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --agent cursor',
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
+      })
     );
   });
 

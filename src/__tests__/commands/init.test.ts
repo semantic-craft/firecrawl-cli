@@ -59,4 +59,39 @@ describe('handleInitCommand', () => {
       expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
     );
   });
+
+  it('installs MCP everywhere in non-interactive mode when an API key is available', async () => {
+    await handleInitCommand({
+      yes: true,
+      skipInstall: true,
+      skipAuth: true,
+      apiKey: 'fc-test',
+    });
+
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --all --yes',
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
+      })
+    );
+  });
+
+  it('scopes non-interactive MCP install to one agent when provided', async () => {
+    await handleInitCommand({
+      yes: true,
+      skipInstall: true,
+      skipAuth: true,
+      apiKey: 'fc-test',
+      agent: 'cursor',
+    });
+
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y add-mcp "npx -y firecrawl-mcp" --name firecrawl --global --agent cursor --yes',
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: expect.objectContaining({ FIRECRAWL_API_KEY: 'fc-test' }),
+      })
+    );
+  });
 });
