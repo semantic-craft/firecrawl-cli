@@ -39,9 +39,6 @@ export async function handleSetupCommand(
     case 'mcp':
       await installMcp(options);
       break;
-    case 'defaults':
-      await setupDefaults(options);
-      break;
     default:
       console.error(`Unknown setup subcommand: ${subcommand}`);
       console.log('\nAvailable subcommands:');
@@ -54,14 +51,13 @@ export async function handleSetupCommand(
       console.log(
         '  mcp        Install firecrawl MCP server into editors (Cursor, Claude Code, VS Code, etc.)'
       );
-      console.log(
-        '  defaults   Make Firecrawl the default web provider for supported AI agents'
-      );
       process.exit(1);
   }
 }
 
-async function setupDefaults(options: SetupOptions): Promise<void> {
+export async function handleMakeDefaultCommand(
+  options: SetupOptions = {}
+): Promise<void> {
   const results = await configureWebDefaults({ undo: options.undo });
 
   for (const result of results) {
