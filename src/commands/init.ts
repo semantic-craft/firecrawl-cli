@@ -198,7 +198,10 @@ function parseSkillCount(output: string): number | null {
  * Print the post-install next-steps block. Brief by design — confirms what was
  * installed and gives 4 entry points (AI prompt, direct CLI, MCP, help).
  */
-function printNextSteps(skillCount: number | null): void {
+function printNextSteps(
+  skillCount: number | null,
+  defaultsHandled = false
+): void {
   const arrow = `${dim}→${reset}`;
   const summary =
     skillCount != null
@@ -224,9 +227,11 @@ function printNextSteps(skillCount: number | null): void {
   console.log(
     `  ${arrow} ${dim}Add MCP:     ${reset} ${bold}firecrawl setup mcp${reset}`
   );
-  console.log(
-    `  ${arrow} ${dim}Default web:${reset} ${bold}firecrawl setup defaults${reset}`
-  );
+  if (!defaultsHandled) {
+    console.log(
+      `  ${arrow} ${dim}Default web:${reset} ${bold}firecrawl setup defaults${reset}`
+    );
+  }
   console.log(
     `  ${arrow} ${dim}All commands:${reset} ${bold}firecrawl --help${reset}`
   );
@@ -753,7 +758,7 @@ export async function handleInitCommand(
   // Step 5: Default web provider
   await stepDefaults();
 
-  printNextSteps(skillCount);
+  printNextSteps(skillCount, true);
 }
 
 async function runNonInteractive(options: InitOptions): Promise<void> {
