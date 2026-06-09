@@ -355,10 +355,6 @@ async function stepIntegrations(options: InitOptions): Promise<number | null> {
         name: 'Env — pull FIRECRAWL_API_KEY into local .env file',
         value: 'env',
       },
-      {
-        name: 'Default web — route web through Firecrawl (disable native web search/fetch in Claude Code/Codex)',
-        value: 'defaults',
-      },
     ],
   });
 
@@ -441,40 +437,54 @@ async function stepIntegrations(options: InitOptions): Promise<number | null> {
         }
         break;
       }
-      case 'defaults': {
-        const harnesses = await checkbox<WebAgent>({
-          message: 'Set Firecrawl as the default web provider for:',
-          choices: WEB_AGENTS.map((agent) => ({
-            name: agent,
-            value: agent,
-            checked: true,
-          })),
-        });
-        if (harnesses.length === 0) {
-          console.log(`  ${dim}No harnesses selected — skipped.${reset}`);
-          break;
-        }
-        console.log(`\n  Configuring default web provider...`);
-        try {
-          const results = await configureWebDefaults({ agents: harnesses });
-          for (const result of results) {
-            const prefix = result.skipped
-              ? '!'
-              : result.changed
-                ? green + '✓' + reset
-                : dim + '•' + reset;
-            console.log(`  ${prefix} ${result.message}`);
-          }
-        } catch {
-          console.error(
-            '  Failed to set defaults. Run "firecrawl setup defaults" later.'
-          );
-        }
-        break;
-      }
     }
   }
   return totalSkills;
+}
+
+/**
+ * Final step: offer to make Firecrawl the default web provider, harness by
+ * harness. Shown right before the next-steps screen.
+ */
+async function stepDefaults(): Promise<void> {
+  const { confirm, checkbox } = await import('@inquirer/prompts');
+
+  const want = await confirm({
+    message:
+      'Set Firecrawl as the default web provider? (disables native web search/fetch in Claude Code/Codex)',
+    default: true,
+  });
+  if (!want) return;
+
+  const harnesses = await checkbox<WebAgent>({
+    message: 'For which harnesses?',
+    choices: WEB_AGENTS.map((agent) => ({
+      name: agent,
+      value: agent,
+      checked: true,
+    })),
+  });
+  if (harnesses.length === 0) {
+    console.log(`  ${dim}No harnesses selected — skipped.${reset}`);
+    return;
+  }
+
+  console.log(`\n  Configuring default web provider...`);
+  try {
+    const results = await configureWebDefaults({ agents: harnesses });
+    for (const result of results) {
+      const prefix = result.skipped
+        ? '!'
+        : result.changed
+          ? green + '✓' + reset
+          : dim + '•' + reset;
+      console.log(`  ${prefix} ${result.message}`);
+    }
+  } catch {
+    console.error(
+      '  Failed to set defaults. Run "firecrawl setup defaults" later.'
+    );
+  }
 }
 
 function copyTemplateFiles(
@@ -739,6 +749,9 @@ export async function handleInitCommand(
 
   // Step 4: Template
   await stepTemplate();
+
+  // Step 5: Default web provider
+  await stepDefaults();
 
   printNextSteps(skillCount);
 }
