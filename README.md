@@ -218,6 +218,9 @@ firecrawl https://spa-app.com --wait-for 3000
 # Get all links from a page
 firecrawl https://example.com --format links
 
+# Discover videos on a page (prints video URLs)
+firecrawl https://example.com/product --format video
+
 # Screenshot + markdown
 firecrawl https://example.com --format markdown --screenshot
 
@@ -704,8 +707,9 @@ firecrawl https://example.com --format links --pretty
 
 ### Format Behavior
 
-- **Single format**: Outputs raw content (markdown text, HTML, etc.)
+- **Single format**: Outputs raw content (markdown text, HTML, links, image URLs, video URLs, etc.)
 - **Multiple formats**: Outputs JSON with all requested data
+- **Video metadata**: Use `--format video --json` to include thumbnails, descriptions, and other `videos` metadata
 
 ```bash
 # Raw markdown output
@@ -713,6 +717,9 @@ firecrawl https://example.com --format markdown
 
 # JSON output with multiple formats
 firecrawl https://example.com --format markdown,links,images
+
+# Full video metadata
+firecrawl https://example.com/product --format video --json
 ```
 
 ---
