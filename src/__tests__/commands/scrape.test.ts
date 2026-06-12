@@ -447,12 +447,9 @@ describe('executeScrape', () => {
 
   describe('Type safety', () => {
     it('should accept valid ScrapeFormat types', async () => {
-      const formatList: Array<'markdown' | 'html' | 'rawHtml' | 'links'> = [
-        'markdown',
-        'html',
-        'rawHtml',
-        'links',
-      ];
+      const formatList: Array<
+        'markdown' | 'html' | 'rawHtml' | 'links' | 'video'
+      > = ['markdown', 'html', 'rawHtml', 'links', 'video'];
 
       for (const format of formatList) {
         mockClient.scrape.mockResolvedValue({ [format]: 'test' });

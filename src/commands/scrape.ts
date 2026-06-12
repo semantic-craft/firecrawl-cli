@@ -383,6 +383,7 @@ async function runWizard(
       { name: 'html', value: 'html' },
       { name: 'links', value: 'links' },
       { name: 'images', value: 'images' },
+      { name: 'video', value: 'video' },
       { name: 'summary', value: 'summary' },
       { name: 'screenshot', value: 'screenshot' },
       { name: 'full page screenshot', value: 'fullPageScreenshot' },
