@@ -267,7 +267,7 @@ async function stepInstall(): Promise<boolean> {
   }
 }
 
-async function stepAuth(options: InitOptions): Promise<boolean> {
+export async function stepAuth(options: InitOptions): Promise<boolean> {
   if (options.apiKey) {
     try {
       saveCredentials({ apiKey: options.apiKey });

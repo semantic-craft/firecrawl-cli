@@ -47,6 +47,7 @@ import {
   handleInitCommand,
   scaffoldTemplate,
   findTemplate,
+  stepAuth,
 } from './commands/init';
 import { handleSetupCommand } from './commands/setup';
 import type { SetupSubcommand } from './commands/setup';
@@ -2051,8 +2052,10 @@ async function main() {
     const { isAuthenticated } = await import('./utils/auth');
 
     if (!isAuthenticated()) {
-      // Not authenticated - prompt for login (banner is shown by ensureAuthenticated)
-      await ensureAuthenticated();
+      // Not authenticated - run the onboarding auth step, which offers logging in
+      // OR continuing on the keyless free tier (no API key required).
+      printBanner();
+      await stepAuth({});
 
       console.log("You're all set! Try scraping a URL:\n");
       console.log('  firecrawl https://example.com\n');
