@@ -11,7 +11,7 @@ npm install -g firecrawl-cli
 Or set up everything in one command (install CLI globally, authenticate, and add skills across all detected coding editors):
 
 ```bash
-npx -y firecrawl-cli@1.16.2 init -y --browser
+npx -y firecrawl-cli@1.19.6 init -y --browser
 ```
 
 - `-y` runs setup non-interactively
@@ -53,14 +53,24 @@ firecrawl setup mcp
 To make Firecrawl the default web provider for supported AI agents:
 
 ```bash
-firecrawl make default
+firecrawl setup defaults    # or: firecrawl make default
 ```
 
 This disables native web fetch/search where supported so agents route web work
-through Firecrawl. To undo those config changes:
+through Firecrawl. When run interactively, it asks harness by harness (Claude
+Code, Codex) so you can choose exactly which to change. Use `-y` to skip the
+picker and apply to all, or `--agent` to target one:
 
 ```bash
-firecrawl make default --undo
+firecrawl setup defaults --agent codex      # only Codex
+firecrawl setup defaults -y                  # all harnesses, no prompts
+```
+
+To undo those config changes (also interactive, harness by harness):
+
+```bash
+firecrawl setup defaults --undo              # pick which to restore
+firecrawl setup defaults --undo --agent claude
 ```
 
 ## Quick Start
@@ -300,6 +310,47 @@ firecrawl search "best coffee shops" --location "Berlin,Germany" --country DE
 # Get news from the past week
 firecrawl search "AI startups funding" --sources news --tbs qdr:w --limit 15
 ```
+
+---
+
+### `feedback` - Send endpoint job feedback
+
+Send concise feedback for a completed v2 `search`, `scrape`, `parse`, or `map`
+job. For search-result quality, `search-feedback` is still the most guided
+command; `feedback` is the generic endpoint/job surface.
+
+```bash
+firecrawl feedback scrape 0193f6c5-1234-7890-abcd-1234567890ab \
+  --rating partial \
+  --issues missing_markdown \
+  --tags docs \
+  --note "The pricing table was missing from the markdown output." \
+  --url https://example.com/pricing \
+  --page-numbers 1
+```
+
+Keep notes and metadata small. Do not send raw scrape or parse outputs as
+feedback.
+
+Set `FIRECRAWL_NO_ENDPOINT_FEEDBACK=1` to make `firecrawl feedback` skip
+endpoint feedback calls silently.
+
+#### Feedback Options
+
+| Option                           | Description                                  |
+| -------------------------------- | -------------------------------------------- |
+| `--rating <rating>`              | Required: `good`, `partial`, or `bad`        |
+| `--issues <codesOrJson>`         | Comma-separated issue codes or JSON array    |
+| `--tags <codesOrJson>`           | Comma-separated tags or JSON array           |
+| `--note <text>`                  | Short human-readable feedback                |
+| `--valuable-sources <json>`      | JSON array of `{url, reason}` entries        |
+| `--missing-content <json>`       | JSON array of `{topic, description}` entries |
+| `--query-suggestions <text>`     | Search/query improvement notes               |
+| `--url <url>`                    | Relevant URL for scrape or parse feedback    |
+| `--page-numbers <numbersOrJson>` | Comma-separated page numbers or JSON array   |
+| `--metadata <json>`              | Small JSON object with extra context         |
+| `--metadata-file <path>`         | Path to small metadata JSON object           |
+| `--silent`                       | Suppress output for background agent calls   |
 
 ---
 
@@ -665,7 +716,7 @@ firecrawl --status
 ```
 
 ```
-  🔥 firecrawl cli v1.16.2
+  🔥 firecrawl cli v1.19.6
 
   ● Authenticated via stored credentials
   Concurrency: 0/100 jobs (parallel scrape limit)

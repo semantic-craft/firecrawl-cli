@@ -16,6 +16,11 @@ import {
   WORKFLOW_SKILL_REPOS,
 } from './skills-install';
 import { hasNpx, installSkillsNative } from './skills-native';
+import {
+  configureWebDefaults,
+  WEB_AGENTS,
+  type WebAgent,
+} from '../utils/web-defaults';
 
 export interface InitOptions {
   global?: boolean;
@@ -193,7 +198,10 @@ function parseSkillCount(output: string): number | null {
  * Print the post-install next-steps block. Brief by design — confirms what was
  * installed and gives 4 entry points (AI prompt, direct CLI, MCP, help).
  */
-function printNextSteps(skillCount: number | null): void {
+function printNextSteps(
+  skillCount: number | null,
+  defaultsHandled = false
+): void {
   const arrow = `${dim}→${reset}`;
   const summary =
     skillCount != null
@@ -219,6 +227,11 @@ function printNextSteps(skillCount: number | null): void {
   console.log(
     `  ${arrow} ${dim}Add MCP:     ${reset} ${bold}firecrawl setup mcp${reset}`
   );
+  if (!defaultsHandled) {
+    console.log(
+      `  ${arrow} ${dim}Default web:${reset} ${bold}firecrawl setup defaults${reset}`
+    );
+  }
   console.log(
     `  ${arrow} ${dim}Make default:${reset} ${bold}firecrawl make default${reset}`
   );
@@ -257,7 +270,7 @@ async function stepInstall(): Promise<boolean> {
   }
 }
 
-async function stepAuth(options: InitOptions): Promise<boolean> {
+export async function stepAuth(options: InitOptions): Promise<boolean> {
   if (options.apiKey) {
     try {
       saveCredentials({ apiKey: options.apiKey });
@@ -284,12 +297,20 @@ async function stepAuth(options: InitOptions): Promise<boolean> {
     choices: [
       { name: 'Login via browser (recommended)', value: 'browser' },
       { name: 'Enter API key manually', value: 'manual' },
-      { name: 'Skip for now', value: 'skip' },
+      {
+        name: 'Continue without an API key (limited free tier)',
+        value: 'skip',
+      },
     ],
   });
 
   if (method === 'skip') {
-    console.log(`  ${dim}Skipped. Run "firecrawl login" later.${reset}\n`);
+    console.log(
+      `  ${dim}Continuing without an API key. scrape, search, and interact work on the limited free tier (rate-limited per IP).${reset}`
+    );
+    console.log(
+      `  ${dim}Run "firecrawl login" anytime to unlock every command and higher limits.${reset}\n`
+    );
     return true;
   }
 
@@ -435,6 +456,51 @@ async function stepIntegrations(options: InitOptions): Promise<number | null> {
     }
   }
   return totalSkills;
+}
+
+/**
+ * Final step: offer to make Firecrawl the default web provider, harness by
+ * harness. Shown right before the next-steps screen.
+ */
+async function stepDefaults(): Promise<void> {
+  const { confirm, checkbox } = await import('@inquirer/prompts');
+
+  const want = await confirm({
+    message:
+      'Set Firecrawl as the default web provider? (disables native web search/fetch in Claude Code/Codex)',
+    default: true,
+  });
+  if (!want) return;
+
+  const harnesses = await checkbox<WebAgent>({
+    message: 'For which harnesses?',
+    choices: WEB_AGENTS.map((agent) => ({
+      name: agent,
+      value: agent,
+      checked: true,
+    })),
+  });
+  if (harnesses.length === 0) {
+    console.log(`  ${dim}No harnesses selected — skipped.${reset}`);
+    return;
+  }
+
+  console.log(`\n  Configuring default web provider...`);
+  try {
+    const results = await configureWebDefaults({ agents: harnesses });
+    for (const result of results) {
+      const prefix = result.skipped
+        ? '!'
+        : result.changed
+          ? green + '✓' + reset
+          : dim + '•' + reset;
+      console.log(`  ${prefix} ${result.message}`);
+    }
+  } catch {
+    console.error(
+      '  Failed to set defaults. Run "firecrawl setup defaults" later.'
+    );
+  }
 }
 
 function copyTemplateFiles(
@@ -700,7 +766,10 @@ export async function handleInitCommand(
   // Step 4: Template
   await stepTemplate();
 
-  printNextSteps(skillCount);
+  // Step 5: Default web provider
+  await stepDefaults();
+
+  printNextSteps(skillCount, true);
 }
 
 async function runNonInteractive(options: InitOptions): Promise<void> {

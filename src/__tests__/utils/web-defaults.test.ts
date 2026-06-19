@@ -41,7 +41,7 @@ describe('configureWebDefaults', () => {
     expect(await read('.codex/config.toml')).toBe('web_search = "disabled"\n');
   });
 
-  it('preserves existing Claude permissions and Codex root config', async () => {
+  it('preserves existing Claude permissions and Codex config while disabling web', async () => {
     await write(
       '.claude/settings.json',
       JSON.stringify({
@@ -69,6 +69,31 @@ describe('configureWebDefaults', () => {
     );
   });
 
+  it('undoes only the native web defaults', async () => {
+    await write(
+      '.claude/settings.json',
+      JSON.stringify({
+        permissions: {
+          deny: ['Bash(rm *)', 'WebSearch', 'WebFetch'],
+        },
+      })
+    );
+    await write(
+      '.codex/config.toml',
+      'model = "gpt-5"\nweb_search = "disabled"\n'
+    );
+
+    const results = await configureWebDefaults({ undo: true });
+
+    expect(results.map((result) => result.changed)).toEqual([true, true]);
+    expect(JSON.parse(await read('.claude/settings.json'))).toEqual({
+      permissions: {
+        deny: ['Bash(rm *)'],
+      },
+    });
+    expect(await read('.codex/config.toml')).toBe('model = "gpt-5"\n');
+  });
+
   it('writes Codex web_search at the root before TOML tables', async () => {
     await write(
       '.codex/config.toml',
@@ -82,28 +107,14 @@ describe('configureWebDefaults', () => {
     );
   });
 
-  it('undoes only native web defaults', async () => {
-    await write(
-      '.claude/settings.json',
-      JSON.stringify({
-        permissions: {
-          deny: ['Bash(rm *)', 'WebSearch', 'WebFetch'],
-        },
-      })
-    );
+  it('does not undo table-local Codex web_search settings', async () => {
     await write(
       '.codex/config.toml',
       'model = "gpt-5"\n\n[profiles.research]\nweb_search = "disabled"\n'
     );
 
-    const results = await configureWebDefaults({ undo: true });
+    await configureWebDefaults({ undo: true });
 
-    expect(results.map((result) => result.changed)).toEqual([true, false]);
-    expect(JSON.parse(await read('.claude/settings.json'))).toEqual({
-      permissions: {
-        deny: ['Bash(rm *)'],
-      },
-    });
     expect(await read('.codex/config.toml')).toBe(
       'model = "gpt-5"\n\n[profiles.research]\nweb_search = "disabled"\n'
     );
