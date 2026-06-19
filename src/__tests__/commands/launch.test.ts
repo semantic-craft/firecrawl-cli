@@ -71,6 +71,31 @@ describe('handleLaunchCommand', () => {
     );
   });
 
+  it('configures Codex MCP and opens Codex App separately from the CLI', async () => {
+    await handleLaunchCommand('codex-app');
+
+    expect(installMcp).toHaveBeenCalledWith({
+      agent: 'codex',
+      global: true,
+      yes: true,
+    });
+    expect(spawnSync).toHaveBeenNthCalledWith(1, 'open', ['--version'], {
+      stdio: 'ignore',
+    });
+    expect(spawnSync).toHaveBeenNthCalledWith(
+      2,
+      'open',
+      ['-b', 'com.openai.codex'],
+      expect.objectContaining({ stdio: 'inherit' })
+    );
+  });
+
+  it('does not pass extra arguments to Codex App', async () => {
+    await expect(
+      handleLaunchCommand('codex-app', {}, ['--foo'])
+    ).rejects.toThrow('Codex App does not accept extra arguments');
+  });
+
   it('can launch without touching MCP', async () => {
     await handleLaunchCommand('opencode', { skipMcp: true });
 

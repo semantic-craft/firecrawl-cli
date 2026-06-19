@@ -20,6 +20,7 @@ interface LaunchTarget {
   mcpAgent: string;
   command: string;
   args?: string[];
+  supportsExtraArgs?: boolean;
   fallbackCommand?: () => { command: string; args: string[] } | null;
 }
 
@@ -55,6 +56,21 @@ const TARGETS: LaunchTarget[] = [
     displayName: 'Codex',
     mcpAgent: 'codex',
     command: 'codex',
+  },
+  {
+    aliases: ['codex-app', 'codex-desktop', 'codex-gui'],
+    displayName: 'Codex App',
+    mcpAgent: 'codex',
+    command: 'open',
+    args: ['-b', 'com.openai.codex'],
+    supportsExtraArgs: false,
+    fallbackCommand: () => {
+      if (process.platform !== 'darwin') return null;
+      return {
+        command: 'open',
+        args: ['-a', 'Codex'],
+      };
+    },
   },
   {
     aliases: ['opencode', 'open-code'],
@@ -131,6 +147,10 @@ function resolveLaunchCommand(
   target: LaunchTarget,
   extraArgs: string[]
 ): { command: string; args: string[] } {
+  if (extraArgs.length > 0 && target.supportsExtraArgs === false) {
+    throw new Error(`${target.displayName} does not accept extra arguments.`);
+  }
+
   if (commandExists(target.command)) {
     return {
       command: target.command,
