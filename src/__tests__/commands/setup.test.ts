@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execSync } from 'child_process';
 import { handleSetupCommand } from '../../commands/setup';
 import { configureWebDefaults } from '../../utils/web-defaults';
+import { getApiKey, getConfig } from '../../utils/config';
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
@@ -11,9 +12,16 @@ vi.mock('../../utils/web-defaults', () => ({
   configureWebDefaults: vi.fn(async () => []),
 }));
 
+vi.mock('../../utils/config', () => ({
+  getApiKey: vi.fn(() => 'fc-test-key'),
+  getConfig: vi.fn(() => ({})),
+}));
+
 describe('handleSetupCommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getApiKey).mockReturnValue('fc-test-key');
+    vi.mocked(getConfig).mockReturnValue({});
   });
 
   afterEach(() => {
@@ -80,6 +88,29 @@ describe('handleSetupCommand', () => {
       undo: true,
       agents: ['Codex'],
     });
+  });
+
+  it('installs MCP with Firecrawl credentials in the server environment', async () => {
+    vi.mocked(getConfig).mockReturnValue({
+      apiKey: 'fc-test-key',
+      apiUrl: 'https://api.example.com',
+    });
+
+    await handleSetupCommand('mcp', {
+      agent: 'claude-code',
+      global: true,
+      yes: true,
+    });
+
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y add-mcp "npx -y firecrawl-mcp" --name firecrawl --env "FIRECRAWL_API_KEY=fc-test-key" --env "FIRECRAWL_API_URL=https://api.example.com" --global --agent claude-code --yes',
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: expect.objectContaining({
+          FIRECRAWL_API_KEY: 'fc-test-key',
+        }),
+      })
+    );
   });
 
   it('strips inherited npm_* env vars before nested npx calls', async () => {

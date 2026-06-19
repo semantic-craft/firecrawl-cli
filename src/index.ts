@@ -50,6 +50,7 @@ import { handleInteractExecute, handleInteractStop } from './commands/interact';
 import { handleVersionCommand } from './commands/version';
 import { handleLoginCommand } from './commands/login';
 import { handleLogoutCommand } from './commands/logout';
+import { handleLaunchCommand } from './commands/launch';
 import {
   handleInitCommand,
   scaffoldTemplate,
@@ -2191,6 +2192,29 @@ program
   )
   .action(async (subcommand: SetupSubcommand, options) => {
     await handleSetupCommand(subcommand, options);
+  });
+
+program
+  .command('launch')
+  .description('Configure Firecrawl MCP for an AI agent, then launch it')
+  .argument(
+    '<agent>',
+    'Agent to launch: claude, code, vscode, codex, or opencode'
+  )
+  .argument('[args...]', 'Extra arguments passed to the launched agent')
+  .option('--install', 'Install Firecrawl MCP without launching')
+  .option('--setup', 'Alias for --install')
+  .option('--config', 'Alias for --install')
+  .option('--skip-mcp', 'Launch without installing or updating Firecrawl MCP')
+  .option(
+    '-g, --global',
+    'Install Firecrawl MCP globally for the selected agent',
+    true
+  )
+  .option('-y, --yes', 'Skip MCP installer confirmation prompts', true)
+  .allowUnknownOption()
+  .action(async (agent: string, args: string[], options) => {
+    await handleLaunchCommand(agent, options, args);
   });
 
 program

@@ -5,7 +5,7 @@
 
 import { execSync } from 'child_process';
 import readline from 'readline';
-import { getApiKey } from '../utils/config';
+import { getApiKey, getConfig } from '../utils/config';
 import {
   buildSkillsInstallArgs,
   cleanNpmEnv,
@@ -27,6 +27,10 @@ export interface SetupOptions {
   undo?: boolean;
   /** Skip the interactive harness picker and apply to all agents. */
   yes?: boolean;
+}
+
+function shellQuote(value: string): string {
+  return JSON.stringify(value);
 }
 
 /**
@@ -198,7 +202,7 @@ async function installSkills(
   }
 }
 
-async function installMcp(options: SetupOptions): Promise<void> {
+export async function installMcp(options: SetupOptions): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) {
     console.error(
@@ -209,11 +213,19 @@ async function installMcp(options: SetupOptions): Promise<void> {
 
   const args = [
     'npx',
+    '-y',
     'add-mcp',
     `"npx -y firecrawl-mcp"`,
     '--name',
     'firecrawl',
+    '--env',
+    shellQuote(`FIRECRAWL_API_KEY=${apiKey}`),
   ];
+
+  const apiUrl = getConfig().apiUrl;
+  if (apiUrl) {
+    args.push('--env', shellQuote(`FIRECRAWL_API_URL=${apiUrl}`));
+  }
 
   if (options.global) {
     args.push('--global');
@@ -221,6 +233,10 @@ async function installMcp(options: SetupOptions): Promise<void> {
 
   if (options.agent) {
     args.push('--agent', options.agent);
+  }
+
+  if (options.yes) {
+    args.push('--yes');
   }
 
   const cmd = args.join(' ');
