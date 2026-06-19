@@ -8,7 +8,9 @@ import {
   handleSetupCommand,
   installHermesMcp,
   installOpenClawMcp,
+  installSkillsForAgent,
 } from '../../commands/setup';
+import { ALL_SKILL_REPOS } from '../../commands/skills-install';
 import { configureWebDefaults } from '../../utils/web-defaults';
 import { getApiKey } from '../../utils/config';
 
@@ -74,6 +76,27 @@ describe('handleSetupCommand', () => {
     );
   });
 
+  it('installs all skill repos for Codex non-interactively', async () => {
+    await installSkillsForAgent(
+      'codex',
+      { global: true, yes: true },
+      ALL_SKILL_REPOS
+    );
+
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y skills add firecrawl/cli --full-depth --global --yes --agent codex',
+      expect.objectContaining({ stdio: 'inherit' })
+    );
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y skills add firecrawl/skills --full-depth --global --yes --agent codex',
+      expect.objectContaining({ stdio: 'inherit' })
+    );
+    expect(execSync).toHaveBeenCalledWith(
+      'npx -y skills add firecrawl/firecrawl-workflows --full-depth --global --yes --agent codex',
+      expect.objectContaining({ stdio: 'inherit' })
+    );
+  });
+
   it('configures Firecrawl as the default web provider via make default', async () => {
     await handleMakeDefaultCommand({ yes: true });
 
@@ -87,11 +110,11 @@ describe('handleSetupCommand', () => {
     await handleSetupCommand(undefined, { yes: true });
 
     expect(execSync).toHaveBeenCalledWith(
-      'npx -y skills add firecrawl/cli --full-depth --global --all',
+      'npx -y skills add firecrawl/cli --full-depth --global --all --yes',
       expect.objectContaining({ stdio: 'inherit' })
     );
     expect(execSync).toHaveBeenCalledWith(
-      'npx -y skills add firecrawl/skills --full-depth --global --all',
+      'npx -y skills add firecrawl/skills --full-depth --global --all --yes',
       expect.objectContaining({ stdio: 'inherit' })
     );
     expect(execSync).toHaveBeenCalledWith(
