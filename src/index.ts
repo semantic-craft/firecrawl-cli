@@ -43,7 +43,7 @@ import {
   scaffoldTemplate,
   findTemplate,
 } from './commands/init';
-import { handleSetupCommand } from './commands/setup';
+import { handleMakeDefaultCommand, handleSetupCommand } from './commands/setup';
 import type { SetupSubcommand } from './commands/setup';
 import { handleEnvPullCommand } from './commands/env';
 import { handleStatusCommand } from './commands/status';
@@ -1810,13 +1810,41 @@ program
 program
   .command('setup')
   .description(
-    'Set up individual firecrawl integrations (skills, workflows, mcp)'
+    'Set up individual firecrawl integrations (skills, workflows, mcp, defaults)'
   )
-  .argument('<subcommand>', 'What to set up: "skills", "workflows", or "mcp"')
+  .argument(
+    '<subcommand>',
+    'What to set up: "skills", "workflows", "mcp", or "defaults"'
+  )
   .option('-g, --global', 'Install globally (user-level)')
   .option('-a, --agent <agent>', 'Install to a specific agent')
+  .option(
+    '--undo',
+    'Undo setup defaults by re-enabling native web tools where supported'
+  )
   .action(async (subcommand: SetupSubcommand, options) => {
     await handleSetupCommand(subcommand, options);
+  });
+
+program
+  .command('make')
+  .description('Make Firecrawl the default provider for supported workflows')
+  .argument('<target>', 'What to make default: "default"')
+  .option(
+    '--undo',
+    'Undo default provider config by re-enabling native web tools where supported'
+  )
+  .action(async (target, options) => {
+    if (target !== 'default') {
+      console.error(`Unknown make target: ${target}`);
+      console.log('\nAvailable targets:');
+      console.log(
+        '  default    Make Firecrawl the default web provider for supported AI agents'
+      );
+      process.exit(1);
+    }
+
+    await handleMakeDefaultCommand(options);
   });
 
 program

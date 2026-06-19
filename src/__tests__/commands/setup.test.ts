@@ -1,9 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execSync } from 'child_process';
-import { handleSetupCommand } from '../../commands/setup';
+import {
+  handleMakeDefaultCommand,
+  handleSetupCommand,
+} from '../../commands/setup';
+import { configureWebDefaults } from '../../utils/web-defaults';
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
+}));
+
+vi.mock('../../utils/web-defaults', () => ({
+  configureWebDefaults: vi.fn(async () => []),
 }));
 
 describe('handleSetupCommand', () => {
@@ -48,6 +56,24 @@ describe('handleSetupCommand', () => {
       'npx -y skills add firecrawl/firecrawl-workflows --full-depth --global --all',
       expect.objectContaining({ stdio: 'inherit' })
     );
+  });
+
+  it('configures Firecrawl as the default web provider via setup alias', async () => {
+    await handleSetupCommand('defaults', {});
+
+    expect(configureWebDefaults).toHaveBeenCalledWith({ undo: undefined });
+  });
+
+  it('configures Firecrawl as the default web provider via make default', async () => {
+    await handleMakeDefaultCommand({});
+
+    expect(configureWebDefaults).toHaveBeenCalledWith({ undo: undefined });
+  });
+
+  it('undoes default web provider config', async () => {
+    await handleMakeDefaultCommand({ undo: true });
+
+    expect(configureWebDefaults).toHaveBeenCalledWith({ undo: true });
   });
 
   it('strips inherited npm_* env vars before nested npx calls', async () => {
