@@ -4,8 +4,12 @@
  */
 
 import { execSync } from 'child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import os from 'os';
+import path from 'path';
 import readline from 'readline';
-import { getApiKey, getConfig } from '../utils/config';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { getApiKey } from '../utils/config';
 import {
   buildSkillsInstallArgs,
   cleanNpmEnv,
@@ -23,6 +27,12 @@ export type SetupSubcommand = 'skills' | 'workflows' | 'mcp' | 'defaults';
 
 type SetupIntegration = SetupSubcommand;
 
+type ResolvedMcpAgent =
+  | { kind: 'add-mcp'; agent?: string; all?: boolean }
+  | { kind: 'hermes' }
+  | { kind: 'openclaw' }
+  | { kind: 'all-launchers' };
+
 export interface SetupOptions {
   global?: boolean;
   agent?: string;
@@ -33,6 +43,49 @@ export interface SetupOptions {
 
 function shellQuote(value: string): string {
   return JSON.stringify(value);
+}
+
+function firecrawlHostedMcpUrl(): string {
+  const apiKey = getApiKey();
+  if (apiKey) {
+    return `https://mcp.firecrawl.dev/${encodeURIComponent(apiKey)}/v2/mcp`;
+  }
+  return 'https://mcp.firecrawl.dev/v2/mcp';
+}
+
+function resolveMcpAgent(agent: string | undefined): ResolvedMcpAgent {
+  if (!agent) return { kind: 'add-mcp' };
+
+  const normalized = agent.trim().toLowerCase();
+  switch (normalized) {
+    case '*':
+    case 'all':
+    case 'launchers':
+    case 'launcher':
+      return { kind: 'all-launchers' };
+    case 'claude':
+    case 'claude-code':
+      return { kind: 'add-mcp', agent: 'claude-code' };
+    case 'code':
+    case 'vscode':
+    case 'vs-code':
+      return { kind: 'add-mcp', agent: 'vscode' };
+    case 'codex':
+    case 'codex-app':
+    case 'codex-desktop':
+    case 'codex-gui':
+      return { kind: 'add-mcp', agent: 'codex' };
+    case 'opencode':
+    case 'open-code':
+      return { kind: 'add-mcp', agent: 'opencode' };
+    case 'hermes':
+    case 'hermes-agent':
+      return { kind: 'hermes' };
+    case 'openclaw':
+      return { kind: 'openclaw' };
+    default:
+      return { kind: 'add-mcp', agent };
+  }
 }
 
 /**
@@ -260,37 +313,65 @@ async function installSkills(
   }
 }
 
+export async function installSkillsForAgent(
+  agent: string,
+  options: SetupOptions = {},
+  repos: readonly string[] = SKILL_REPOS
+): Promise<void> {
+  await installSkills(
+    { ...options, agent, global: options.global ?? true },
+    repos
+  );
+}
+
 export async function installMcp(options: SetupOptions): Promise<void> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    console.error(
-      'No API key found. Please run `firecrawl login` first, or set FIRECRAWL_API_KEY.'
-    );
-    process.exit(1);
+  const resolvedAgent = resolveMcpAgent(options.agent);
+  if (resolvedAgent.kind === 'hermes') {
+    await installHermesMcp();
+    return;
   }
+  if (resolvedAgent.kind === 'openclaw') {
+    await installOpenClawMcp();
+    return;
+  }
+  if (resolvedAgent.kind === 'all-launchers') {
+    await installAddMcp(
+      { ...options, yes: true },
+      { kind: 'add-mcp', all: true }
+    );
+    await installHermesMcp();
+    await installOpenClawMcp();
+    return;
+  }
+
+  await installAddMcp(options, resolvedAgent);
+}
+
+async function installAddMcp(
+  options: SetupOptions,
+  resolvedAgent: Extract<ResolvedMcpAgent, { kind: 'add-mcp' }>
+): Promise<void> {
+  const mcpUrl = firecrawlHostedMcpUrl();
 
   const args = [
     'npx',
     '-y',
     'add-mcp',
-    `"npx -y firecrawl-mcp"`,
+    shellQuote(mcpUrl),
     '--name',
     'firecrawl',
-    '--env',
-    shellQuote(`FIRECRAWL_API_KEY=${apiKey}`),
+    '--transport',
+    'http',
   ];
-
-  const apiUrl = getConfig().apiUrl;
-  if (apiUrl) {
-    args.push('--env', shellQuote(`FIRECRAWL_API_URL=${apiUrl}`));
-  }
 
   if (options.global) {
     args.push('--global');
   }
 
-  if (options.agent) {
-    args.push('--agent', options.agent);
+  if (resolvedAgent.agent) {
+    args.push('--agent', resolvedAgent.agent);
+  } else if (resolvedAgent.all) {
+    args.push('--all');
   }
 
   if (options.yes) {
@@ -303,7 +384,63 @@ export async function installMcp(options: SetupOptions): Promise<void> {
   try {
     execSync(cmd, {
       stdio: 'inherit',
-      env: { ...cleanNpmEnv(), FIRECRAWL_API_KEY: apiKey },
+      env: cleanNpmEnv(),
+    });
+  } catch {
+    process.exit(1);
+  }
+}
+
+function firecrawlMcpConfig(): {
+  url: string;
+  transport?: string;
+} {
+  return {
+    url: firecrawlHostedMcpUrl(),
+  };
+}
+
+export async function installHermesMcp(): Promise<void> {
+  const config = firecrawlMcpConfig();
+  const configPath = path.join(os.homedir(), '.hermes', 'config.yaml');
+  mkdirSync(path.dirname(configPath), { recursive: true });
+
+  const existing = existsSync(configPath)
+    ? readFileSync(configPath, 'utf-8')
+    : '';
+  const root = (parseYaml(existing || '{}') ?? {}) as Record<string, unknown>;
+  const mcpServers =
+    typeof root.mcp_servers === 'object' &&
+    root.mcp_servers !== null &&
+    !Array.isArray(root.mcp_servers)
+      ? (root.mcp_servers as Record<string, unknown>)
+      : {};
+
+  mcpServers.firecrawl = config;
+  root.mcp_servers = mcpServers;
+  writeFileSync(configPath, stringifyYaml(root), 'utf-8');
+  console.log(`Hermes Agent MCP configured at ${configPath}.`);
+}
+
+export async function installOpenClawMcp(): Promise<void> {
+  const config = {
+    ...firecrawlMcpConfig(),
+    transport: 'streamable-http',
+  };
+  const cmd = [
+    'openclaw',
+    'mcp',
+    'set',
+    'firecrawl',
+    shellQuote(JSON.stringify(config)),
+  ].join(' ');
+
+  console.log(`Running: ${cmd}\n`);
+
+  try {
+    execSync(cmd, {
+      stdio: 'inherit',
+      env: cleanNpmEnv(),
     });
   } catch {
     process.exit(1);

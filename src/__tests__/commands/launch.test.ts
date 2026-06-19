@@ -1,14 +1,22 @@
 import { spawnSync } from 'child_process';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleLaunchCommand } from '../../commands/launch';
-import { installMcp } from '../../commands/setup';
+import {
+  installHermesMcp,
+  installMcp,
+  installOpenClawMcp,
+  installSkillsForAgent,
+} from '../../commands/setup';
 
 vi.mock('child_process', () => ({
   spawnSync: vi.fn(),
 }));
 
 vi.mock('../../commands/setup', () => ({
+  installHermesMcp: vi.fn(async () => undefined),
   installMcp: vi.fn(async () => undefined),
+  installOpenClawMcp: vi.fn(async () => undefined),
+  installSkillsForAgent: vi.fn(async () => undefined),
 }));
 
 describe('handleLaunchCommand', () => {
@@ -103,6 +111,51 @@ describe('handleLaunchCommand', () => {
     expect(spawnSync).toHaveBeenNthCalledWith(1, 'opencode', ['--version'], {
       stdio: 'ignore',
     });
+  });
+
+  it('configures Hermes MCP and skills, then launches Hermes Agent', async () => {
+    await handleLaunchCommand('hermes');
+
+    expect(installHermesMcp).toHaveBeenCalled();
+    expect(installSkillsForAgent).toHaveBeenCalledWith('hermes-agent', {
+      global: true,
+      yes: true,
+    });
+    expect(spawnSync).toHaveBeenNthCalledWith(1, 'hermes', ['--version'], {
+      stdio: 'ignore',
+    });
+    expect(spawnSync).toHaveBeenNthCalledWith(
+      2,
+      'hermes',
+      [],
+      expect.objectContaining({ stdio: 'inherit' })
+    );
+  });
+
+  it('configures OpenClaw MCP and skills, then launches the TUI', async () => {
+    await handleLaunchCommand('openclaw');
+
+    expect(installOpenClawMcp).toHaveBeenCalled();
+    expect(installSkillsForAgent).toHaveBeenCalledWith('openclaw', {
+      global: true,
+      yes: true,
+    });
+    expect(spawnSync).toHaveBeenNthCalledWith(1, 'openclaw', ['--version'], {
+      stdio: 'ignore',
+    });
+    expect(spawnSync).toHaveBeenNthCalledWith(
+      2,
+      'openclaw',
+      ['tui'],
+      expect.objectContaining({ stdio: 'inherit' })
+    );
+  });
+
+  it('can skip skills for Hermes and OpenClaw launch targets', async () => {
+    await handleLaunchCommand('hermes', { skipSkills: true });
+
+    expect(installHermesMcp).toHaveBeenCalled();
+    expect(installSkillsForAgent).not.toHaveBeenCalled();
   });
 
   it('requires an explicit target in non-interactive mode', async () => {

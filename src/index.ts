@@ -2180,7 +2180,7 @@ program
   .option('-g, --global', 'Install globally (user-level)')
   .option(
     '-a, --agent <agent>',
-    'Limit to a specific agent (for "defaults": "claude" or "codex")'
+    'Limit to a specific agent; for "mcp", use "all" to update every launch integration'
   )
   .option(
     '-y, --yes',
@@ -2200,13 +2200,14 @@ program
   .description('Configure Firecrawl MCP for an AI agent, then launch it')
   .argument(
     '[agent]',
-    'Agent to launch: claude, code/vscode, codex, codex-app, or opencode; omit for an interactive picker'
+    'Agent to launch: claude, code/vscode, codex, codex-app, hermes, openclaw, or opencode; omit for an interactive picker'
   )
   .argument('[args...]', 'Extra arguments passed to the launched agent')
   .option('--install', 'Install Firecrawl MCP without launching')
   .option('--setup', 'Alias for --install')
   .option('--config', 'Alias for --install')
   .option('--skip-mcp', 'Launch without installing or updating Firecrawl MCP')
+  .option('--skip-skills', 'Launch without installing Firecrawl skills')
   .option(
     '-g, --global',
     'Install Firecrawl MCP globally for the selected agent',

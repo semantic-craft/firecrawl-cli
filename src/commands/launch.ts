@@ -3,7 +3,12 @@ import os from 'os';
 import path from 'path';
 import readline from 'readline';
 import { spawnSync } from 'child_process';
-import { installMcp } from './setup';
+import {
+  installHermesMcp,
+  installMcp,
+  installOpenClawMcp,
+  installSkillsForAgent,
+} from './setup';
 
 export interface LaunchOptions {
   config?: boolean;
@@ -12,12 +17,15 @@ export interface LaunchOptions {
   global?: boolean;
   yes?: boolean;
   skipMcp?: boolean;
+  skipSkills?: boolean;
 }
 
 interface LaunchTarget {
   aliases: string[];
   displayName: string;
-  mcpAgent: string;
+  mcpAgent?: string;
+  mcpInstaller?: () => Promise<void>;
+  skillsAgent?: string;
   command: string;
   args?: string[];
   supportsExtraArgs?: boolean;
@@ -77,6 +85,21 @@ const TARGETS: LaunchTarget[] = [
     displayName: 'OpenCode',
     mcpAgent: 'opencode',
     command: 'opencode',
+  },
+  {
+    aliases: ['hermes', 'hermes-agent'],
+    displayName: 'Hermes Agent',
+    mcpInstaller: installHermesMcp,
+    skillsAgent: 'hermes-agent',
+    command: 'hermes',
+  },
+  {
+    aliases: ['openclaw'],
+    displayName: 'OpenClaw',
+    mcpInstaller: installOpenClawMcp,
+    skillsAgent: 'openclaw',
+    command: 'openclaw',
+    args: ['tui'],
   },
 ];
 
@@ -190,8 +213,19 @@ export async function handleLaunchCommand(
   }
 
   if (!options.skipMcp) {
-    await installMcp({
-      agent: target.mcpAgent,
+    if (target.mcpInstaller) {
+      await target.mcpInstaller();
+    } else if (target.mcpAgent) {
+      await installMcp({
+        agent: target.mcpAgent,
+        global: options.global !== false,
+        yes: options.yes ?? true,
+      });
+    }
+  }
+
+  if (target.skillsAgent && !options.skipSkills) {
+    await installSkillsForAgent(target.skillsAgent, {
       global: options.global !== false,
       yes: options.yes ?? true,
     });
