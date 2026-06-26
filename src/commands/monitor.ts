@@ -127,6 +127,21 @@ function fail(error: unknown): never {
 }
 
 /**
+ * Firecrawl Cloud web dashboard URL for a monitor, used to point users at the
+ * place they can inspect checks and tweak config. Returns null for self-hosted
+ * APIs, which have no web dashboard.
+ */
+function monitorDashboardUrl(
+  id: string,
+  apiUrl: string | undefined
+): string | null {
+  const url = apiUrl || getConfig().apiUrl || DEFAULT_API_URL;
+  return /api\.firecrawl\.dev/i.test(url)
+    ? `https://www.firecrawl.dev/app/monitoring/${id}`
+    : null;
+}
+
+/**
  * Build the request body for `monitor create` from CLI flags.
  *
  * For full control, callers can pass a JSON file path positionally or pipe
@@ -310,6 +325,19 @@ export function createMonitorCommand(): Command {
         '--goal <text>',
         'Plain-language goal for the AI change judge (auto-enables the judge)'
       )
+      .addHelpText(
+        'after',
+        `
+Target modes (choose one per monitor):
+  --page <url>                    Watch a single page for changes
+  --scrape-urls <url,url,...>     Watch a batch of pages for changes
+  --crawl-url <root-url>          Watch a whole site — crawls and diffs every page each check
+  --queries <query,...> + --goal  Watch the web via search — alerts on NEW results matching --goal
+
+The first three watch URLs you give it for changes. --queries instead searches the
+whole web each check and alerts on new results matching your --goal (required with --queries).
+`
+      )
   ).action(async (file: string | undefined, options) => {
     try {
       const fromJson = await readJsonPayload(file);
@@ -339,6 +367,16 @@ export function createMonitorCommand(): Command {
         body,
       });
       emit(payload, options);
+      // Point the user at the dashboard + a smoke-test. Only when interactive,
+      // so stdout pipes and `--output` files stay clean for scripting.
+      const createdId = (payload as { data?: { id?: string } })?.data?.id;
+      if (createdId && process.stdout.isTTY) {
+        const link = monitorDashboardUrl(createdId, options.apiUrl);
+        const hints = [`\n  Monitor created · ${createdId}`];
+        if (link) hints.push(`  Open in dashboard:  ${link}`);
+        hints.push(`  Trigger a check:    firecrawl monitor run ${createdId}`);
+        process.stderr.write(hints.join('\n') + '\n');
+      }
     } catch (err) {
       fail(err);
     }
