@@ -172,7 +172,7 @@ export function buildCreateBody(opts: {
   // The API requires a non-empty goal whenever a search target is present
   // (it auto-enables the AI judge). Fail early with a clear message.
   if (hasSearch && (!opts.goal || !opts.goal.trim())) {
-    throw new Error('--goal is required for search monitors (--queries)');
+    throw new Error('--goal is required for web monitors (--queries)');
   }
 
   const schedule: Record<string, unknown> = {};

@@ -61,14 +61,14 @@ describe('monitor command helpers', () => {
       });
     });
 
-    it('requires a goal for search monitors', () => {
+    it('requires a goal for web monitors', () => {
       expect(() =>
         buildCreateBody({
           name: 'No goal',
           scheduleText: 'hourly',
           queries: ['something'],
         })
-      ).toThrow(/goal is required for search monitors/);
+      ).toThrow(/goal is required for web monitors/);
     });
 
     it('supports the simple page plus goal path', () => {
